@@ -18,7 +18,7 @@
     display:flex; flex-direction:column;
   }
   
-  /* HEADER OPTIMISÉ MOBILE */
+  /* HEADER */
   header{
     padding:12px 15px; background:#0e1219; border-bottom:1px solid var(--line);
     display:flex; align-items:center; gap:15px; flex-wrap:wrap;
@@ -42,9 +42,11 @@
   /* GRAPHIQUE */
   .chart-container{
     flex:1; position:relative; background:#05080c;
-    min-height: 300px; /* Force une taille minimale pour iOS */
+    min-height: 300px; 
   }
-  #chart{width:100%; height:100%;}
+  #chart{
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0; /* Force le remplissage */
+  }
   
   /* PANNEAU RESULTATS */
   .panel{
@@ -69,6 +71,8 @@
   
   .live-dot{display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--up); margin-right:8px; animation:pulse 1.5s infinite;}
   @keyframes pulse{ 0% { box-shadow: 0 0 0 0 rgba(38,166,154,0.7); } 70% { box-shadow: 0 0 0 8px rgba(38,166,154,0); } 100% { box-shadow: 0 0 0 0 rgba(38,166,154,0); } }
+  
+  .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:14px; }
 </style>
 </head>
 <body>
@@ -110,7 +114,7 @@
       <span class="live-dot"></span> Analyse SMC en temps réel
     </div>
     <div id="analysisContent">
-      <div style="padding:20px; text-align:center; color:var(--muted);">Chargement des données...</div>
+      <div class="loading-text">Initialisation du graphique...</div>
     </div>
   </div>
 </div>
@@ -124,6 +128,7 @@ let currentSymbol = 'XAUUSD';
 let currentTF = '5m';
 let currentPrice = 0;
 let updateInterval = null;
+let priceLines = []; // Pour stocker et nettoyer les lignes
 
 function getDecimals(symbol) {
   if(symbol.includes('JPY')) return 3;
@@ -138,7 +143,6 @@ function getDecimals(symbol) {
 function initChart() {
   const chartContainer = $('chart');
   
-  // Création du graphique
   chart = LightweightCharts.createChart(chartContainer, {
     layout: { background: { type: 'solid', color: '#05080c' }, textColor: '#d1d4dc' },
     grid: { vertLines: { color: '#1a1f2c' }, horzLines: { color: '#1a1f2c' } },
@@ -152,7 +156,6 @@ function initChart() {
     wickUpColor: '#26a69a', wickDownColor: '#ef5350',
   });
 
-  // Redimensionnement auto
   const resizeObserver = new ResizeObserver(entries => {
     if (entries.length === 0 || entries[0].target !== chartContainer) return;
     const newRect = entries[0].contentRect;
@@ -162,23 +165,48 @@ function initChart() {
 }
 
 /* =========================================
-   RÉCUPÉRATION DES DONNÉES (via AllOrigins)
+   RÉCUPÉRATION DES DONNÉES (Fallback System)
    ========================================= */
 async function fetchData() {
+  const targetUrl = `https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=200`;
+  let response;
+
   try {
-    const targetUrl = `https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=200`;
-    // On utilise allorigins.win qui est beaucoup plus stable que corsproxy.io
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+    // 1. Essai en direct (souvent supporté)
+    response = await fetch(targetUrl);
+    if (!response.ok) throw new Error(`Direct: HTTP ${response.status}`);
+    console.log("Connecté en direct");
+  } catch (e1) {
+    console.warn("Échec direct, tentative Proxy 1...", e1);
+    try {
+      // 2. Proxy Codetabs (très stable)
+      const proxy1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
+      response = await fetch(proxy1);
+      if (!response.ok) throw new Error(`Proxy1: HTTP ${response.status}`);
+      console.log("Connecté via Codetabs");
+    } catch (e2) {
+      console.warn("Échec Proxy 1, tentative Proxy 2...", e2);
+      try {
+        // 3. Proxy AllOrigins (fallback final)
+        const proxy2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        response = await fetch(proxy2);
+        if (!response.ok) throw new Error(`Proxy2: HTTP ${response.status}`);
+        console.log("Connecté via AllOrigins");
+      } catch (e3) {
+        throw new Error("Impossible de joindre l'API (réseau ou marchés fermés).");
+      }
+    }
+  }
 
-    const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-
+  try {
     const result = await response.json();
     const bars = result.bars || [];
     
-    if (bars.length === 0) throw new Error("Aucune donnée reçue (marché fermé le week-end ?)");
+    if (bars.length === 0) {
+      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--warn)">Aucune donnée reçue.<br>Le marché est peut-être fermé (ex: Forex le week-end).</div>`;
+      return;
+    }
 
-    // Formatage propre et conversion en float
     const parsedData = bars.map(d => ({
       time: Math.floor(new Date(d.openTime).getTime() / 1000),
       open: parseFloat(d.open),
@@ -187,7 +215,6 @@ async function fetchData() {
       close: parseFloat(d.close)
     }));
 
-    // Déduplication et tri
     const uniqueData = [];
     const seenTimes = new Set();
     for(const item of parsedData) {
@@ -207,9 +234,7 @@ async function fetchData() {
     analyzeSMC();
     
   } catch (err) {
-    console.error("Erreur API:", err);
-    $('analysisContent').innerHTML = `<div style="padding:20px; color:var(--down);">
-      Erreur de connexion.<br><br><small>${err.message}</small></div>`;
+    $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Erreur d'analyse des données.<br><small>${err.message}</small></div>`;
   }
 }
 
@@ -329,13 +354,16 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
    DESSIN SUR LE GRAPHIQUE
    ========================================= */
 function drawLines(lE, lS, lT, sE, sS, sT) {
-  candleSeries.setData(currentData); 
+  // Nettoyage des anciennes lignes pour éviter de surcharger le graphique
+  priceLines.forEach(line => candleSeries.removePriceLine(line));
+  priceLines = [];
   
   const addLine = (price, color, title, style) => {
-    candleSeries.createPriceLine({
+    const line = candleSeries.createPriceLine({
       price: price, color: color, lineWidth: 1,
       lineStyle: style, axisLabelVisible: true, title: title,
     });
+    priceLines.push(line);
   };
 
   addLine(lE, '#2962ff', 'Entrée L', LightweightCharts.LineStyle.Solid);
@@ -346,22 +374,26 @@ function drawLines(lE, lS, lT, sE, sS, sT) {
 /* =========================================
    LANCEMENT
    ========================================= */
+// Initialisation au chargement de la page
 window.addEventListener('load', () => {
   initChart();
-  fetchData();
   
-  if (updateInterval) clearInterval(updateInterval);
-  updateInterval = setInterval(fetchData, 5000);
+  // On laisse 200ms au navigateur pour calculer la taille de l'écran avant de charger les données
+  setTimeout(() => {
+    fetchData();
+    if (updateInterval) clearInterval(updateInterval);
+    updateInterval = setInterval(fetchData, 5000); // Rafraîchissement toutes les 5 sec
+  }, 200);
 });
 
 $('symbolSelect').addEventListener('change', (e) => {
   currentSymbol = e.target.value;
-  $('analysisContent').innerHTML = '<div style="padding:20px; text-align:center;">Chargement...</div>';
+  $('analysisContent').innerHTML = '<div class="loading-text">Chargement...</div>';
   fetchData();
 });
 $('tfSelect').addEventListener('change', (e) => {
   currentTF = e.target.value;
-  $('analysisContent').innerHTML = '<div style="padding:20px; text-align:center;">Chargement...</div>';
+  $('analysisContent').innerHTML = '<div class="loading-text">Chargement...</div>';
   fetchData();
 });
 </script>
