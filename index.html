@@ -35,13 +35,6 @@
   header h1{font-size:14px;margin:0;font-weight:700;}
   header h1 span{color:var(--acc)}
   
-  .hdr-actions{display:flex; gap:6px;}
-  .hdr-actions button{
-    background:var(--panel2); border:1px solid var(--line); color:var(--muted);
-    padding:6px 10px; border-radius:5px; font-size:11px; font-weight:600; cursor:pointer;
-  }
-  .hdr-actions button:disabled{opacity:.4}
-  
   .hdr-fields{display:flex; gap:6px;}
   .hdr-fields select,.hdr-fields input{
     background:var(--panel2); border:1px solid var(--line); color:var(--txt);
@@ -55,7 +48,9 @@
   @media(max-width:1024px){
     .app{display:flex; flex-direction:column; height:auto; min-height:calc(100vh - 54px);}
     .panel{border:none; border-bottom:1px solid var(--line);}
-    .panel.center{order:-1; /* Chart en premier sur mobile */}
+    .panel.center{order:-1;}
+    /* Sur mobile, le graphique prend max 45% de la hauteur de l'écran */
+    .chart-wrap { max-height: 45vh; } 
   }
 
   .panel{background:var(--panel); display:flex; flex-direction:column; overflow-y:auto;}
@@ -65,38 +60,36 @@
   .sect h2{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:0 0 8px;font-weight:700;}
   
   /* BUTTONS */
-  button.btn{
-    width:100%; border:1px solid var(--line); border-radius:6px; padding:10px;
-    font-weight:600; font-size:12px; cursor:pointer; background:var(--panel2); color:var(--txt);
-    margin-top:6px; display:flex; align-items:center; justify-content:center; gap:6px;
+  button.btn, .btn-label {
+    border:1px solid var(--line); border-radius:6px; padding:8px 12px;
+    font-weight:600; font-size:11.5px; cursor:pointer; background:var(--panel2); color:var(--txt);
+    display:inline-flex; align-items:center; justify-content:center; gap:6px; text-decoration:none;
   }
-  button.btn:active{background:var(--panel3)}
-  button.btn:disabled{opacity:.4}
-  button.btn.primary{background:var(--acc); color:#fff; border-color:var(--acc)}
+  button.btn:active, .btn-label:active{background:var(--panel3)}
+  button.btn:disabled{opacity:.4; pointer-events:none;}
+  button.btn.primary, .btn-label.primary{background:var(--acc); color:#fff; border-color:var(--acc)}
   button.btn.ghost{background:transparent}
   button.btn.active{background:var(--up); color:#000; border-color:var(--up)}
 
-  /* DROPZONE (Optimisé Mobile) */
-  .drop{
-    display:block; border:2px dashed var(--line2); border-radius:8px; padding:20px 15px; text-align:center;
-    color:var(--muted); cursor:pointer; font-size:12px; font-weight:600;
-    background: rgba(41,98,255,0.02); transition: 0.2s;
-  }
-  .drop:active{border-color:var(--acc); color:var(--txt); background:rgba(41,98,255,.1)}
   input[type=file]{display:none}
 
   /* CHART ZONE */
-  .chart-wrap{position:relative; width:100%; min-height: 250px; display:flex; align-items:center; justify-content:center; background:#05080c; overflow:auto;}
+  .chart-wrap{position:relative; width:100%; min-height: 200px; display:flex; align-items:center; justify-content:center; background:#05080c; overflow:auto;}
   .canvas-inner{position:relative; line-height:0; display:none;}
   canvas{display:block; max-width:100%; height:auto;}
-  #overlay{position:absolute; inset:0; width:100%; height:100%; cursor:crosshair; touch-action: none;}
+  
+  /* Overlay : autorise le scroll par défaut, le bloque seulement en mode calibration */
+  #overlay { position:absolute; inset:0; width:100%; height:100%; touch-action: pan-y; } 
+  #overlay.calibrating { touch-action: none; cursor: crosshair; }
+
   .empty-chart{color:var(--dim); text-align:center; padding:40px 15px; font-size:12px;}
   
   .chart-toolbar{
-    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
-    padding:8px 12px; background:var(--panel); border-top:1px solid var(--line); font-size:11px;
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+    padding:8px; background:var(--panel); border-top:1px solid var(--line);
+    position:sticky; bottom:0; z-index:10;
   }
-  .chart-toolbar .status{margin-left:auto; color:var(--dim); font-weight:600;}
+  .chart-toolbar .status{margin-left:auto; color:var(--dim); font-size:11px; font-weight:600;}
 
   /* TABS */
   .tabs{display:flex; background:var(--panel); position:sticky; top:0; z-index:5; border-bottom:1px solid var(--line);}
@@ -109,13 +102,6 @@
   
   /* RESULTS */
   .results{padding:12px; font-size:12.5px; line-height:1.5;}
-  .results h2{font-size:11px; border-bottom:1px solid var(--line); padding-bottom:6px; margin:14px 0 8px; color:var(--muted); text-transform:uppercase;}
-  .results p{margin:6px 0;}
-  .results ul{padding-left:16px; margin:4px 0;}
-  .results li{margin:2px 0;}
-  .results strong{color:#fff;}
-
-  /* KPI & CARDS */
   .kpi-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px;}
   .kpi{background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:8px 10px; border-left:3px solid var(--dim);}
   .kpi.up{border-left-color:var(--up)} .kpi.down{border-left-color:var(--down)} .kpi.info{border-left-color:var(--acc)}
@@ -132,7 +118,6 @@
   .trade-cell{background:rgba(0,0,0,.2); border-radius:4px; padding:6px 8px; border:1px solid var(--line);}
   .trade-cell small{display:block; font-size:9px; color:var(--dim);}
   .trade-cell b{font-family:ui-monospace,monospace; font-size:12px; display:block;}
-  .trade-cell.entry b{color:var(--acc)} .trade-cell.sl b{color:var(--down)} .trade-cell.tp b{color:var(--up)}
   
   .warnbox{background:rgba(255,152,0,.1); border:1px solid var(--warn); color:var(--warn); padding:10px; border-radius:6px; font-size:11px; margin-top:10px;}
 
@@ -163,9 +148,6 @@
       <div class="logo"></div>
       <h1>Chart<span>Vision</span> SMC</h1>
     </div>
-    <div class="hdr-actions">
-      <button id="btnExport" disabled>⬇ Rapport</button>
-    </div>
   </div>
   <div class="hdr-fields">
     <select id="assetType">
@@ -180,27 +162,10 @@
 </header>
 
 <div class="app">
-  <!-- PANNEAU GAUCHE (OPTIONS) -->
+  <!-- PANNEAU GAUCHE (OPTIONS AVANCÉES) -->
   <aside class="panel">
     <div class="sect">
-      <h2>1. Screenshot TradingView</h2>
-      <label class="drop" for="file">
-        📸 Appuyez ici pour choisir une image<br><span style="font-size:10px; opacity:0.7">(ou glissez-déposez sur PC)</span>
-      </label>
-      <input type="file" id="file" accept="image/png, image/jpeg, image/webp">
-      <button class="btn ghost" id="btnClear" disabled>Effacer</button>
-    </div>
-
-    <div class="sect">
-      <h2>2. Calibration prix</h2>
-      <button class="btn primary" id="btnClick" disabled>🎯 Calibrer au clic</button>
-      <div id="calibStatus" style="font-size:10.5px; color:var(--dim); margin-top:8px;">
-        Cliquez sur "Calibrer", puis touchez un prix en haut à droite, puis un prix en bas à droite.
-      </div>
-    </div>
-
-    <div class="sect">
-      <h2>3. Options d'affichage</h2>
+      <h2>Options d'affichage</h2>
       <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px;">
         <input type="checkbox" id="showOB" checked> Order Blocks (OB)
       </label>
@@ -213,11 +178,11 @@
     </div>
   </aside>
 
-  <!-- PANNEAU CENTRAL (CHART) -->
+  <!-- PANNEAU CENTRAL (CHART & TOOLBAR) -->
   <main class="panel center">
     <div class="chart-wrap" id="chartWrap">
       <div class="empty-chart" id="emptyChart">
-        Charger un screenshot pour<br>lancer l'analyse SMC.
+        Chargez un screenshot pour<br>lancer l'analyse SMC.
       </div>
       <div class="canvas-inner" id="canvasInner">
         <canvas id="cv"></canvas>
@@ -233,9 +198,19 @@
         </div>
       </div>
     </div>
+    
+    <!-- Barre d'outils TOUJOURS visible -->
     <div class="chart-toolbar">
+      <label class="btn-label primary" for="file">📸 Image</label>
+      <input type="file" id="file" accept="image/*">
+      
+      <button class="btn primary" id="btnClick" disabled>🎯 Calibrer</button>
+      <button class="btn ghost" id="btnClear" disabled>Effacer</button>
+      
       <div class="status" id="statusTxt">Prêt</div>
     </div>
+    
+    <div id="calibStatus" style="font-size:10.5px; color:var(--dim); padding:0 12px 8px; text-align:center;"></div>
   </main>
 
   <!-- PANNEAU DROIT (RESULTATS) -->
@@ -264,8 +239,7 @@ const S = {
   cv:$('cv'), ov:$('overlay'), ctx:null, octx:null,
   loaded:false, imageDataURL:null, candles:[], swings:[],
   analysis:null, smc:null, setups:null,
-  priceCal:null, mouse:null, layout:null,
-  calibMode:false, calibPoints:[]
+  priceCal:null, layout:null, calibMode:false, calibPoints:[]
 };
 S.ctx = S.cv.getContext('2d', {willReadFrequently:true, alpha: false});
 S.octx = S.ov.getContext('2d');
@@ -282,84 +256,49 @@ function fmtPrice(p, dec){
   const d = dec !== undefined ? dec : (S.priceCal?.dec ?? profile().dec);
   return p.toLocaleString('fr-FR', {minimumFractionDigits:d, maximumFractionDigits:d});
 }
-function priceOrPct(y){
-  const p = yToPrice(y);
-  if(p !== null) return fmtPrice(p);
-  const a = S.analysis;
-  if(!a) return '—';
-  const rel = (a.maxY - y) / (a.maxY - a.minY || 1);
-  return 'h ' + (rel*100).toFixed(1) + '%';
-}
 function setStatus(t, spin){
   $('statusTxt').innerHTML = (spin ? '<span class="spin"></span>' : '') + t;
 }
 
-/* CHARGEMENT IMAGE OPTIMISÉ POUR MOBILE */
+/* CHARGEMENT IMAGE */
 $('file').addEventListener('change', async e => {
   const file = e.target.files[0];
   if(!file) return;
-  
-  if (!file.type.match('image.*')) {
-    alert("Le fichier sélectionné n'est pas une image.");
-    return;
-  }
-
   setStatus('Lecture…', true);
-  $('emptyChart').innerHTML = "Chargement de l'image en cours...";
-
-  // Utilisation de ObjectURL (beaucoup plus léger que FileReader pour les grosses photos)
   const url = URL.createObjectURL(file);
-
   const img = new Image();
+  
   img.onload = () => {
     try {
-      // Réduction drastique pour éviter le crash mémoire sur mobile (max 1000px)
-      const MAX = 1000;
+      const MAX = 1200; // Optimisé mobile
       const k = Math.min(1, MAX/Math.max(img.naturalWidth, img.naturalHeight));
       const w = Math.round(img.naturalWidth*k), h = Math.round(img.naturalHeight*k);
       
       S.cv.width = w; S.cv.height = h;
       S.ov.width = w; S.ov.height = h;
       
-      // Remplir le fond en noir avant de dessiner (évite les problèmes de transparence)
-      S.ctx.fillStyle = "#000000";
+      S.ctx.fillStyle = "#000000"; // Fond noir pour éviter les transparences
       S.ctx.fillRect(0, 0, w, h);
-      
       S.ctx.drawImage(img, 0, 0, w, h);
       
-      // On refait un toDataURL mais en format léger (pour l'export éventuel)
-      try {
-        S.imageDataURL = S.cv.toDataURL('image/jpeg', 0.8);
-      } catch(e) {
-        console.warn("Impossible de générer la DataURL (sécurité navigateur)");
-      }
-
-      S.loaded = true; S.mouse = null; S.priceCal = null; S.calibMode = false; S.calibPoints = [];
+      S.loaded = true; S.priceCal = null; S.calibMode = false; S.calibPoints = [];
       
       $('emptyChart').style.display = 'none';
       $('canvasInner').style.display = 'block';
-      $('btnClear').disabled = false; $('btnClick').disabled = false; $('btnExport').disabled = false;
-      $('calibStatus').innerHTML = "Sans calibration : % de hauteur.<br><b>Cliquez sur Calibrer pour des prix exacts.</b>";
+      $('btnClear').disabled = false; $('btnClick').disabled = false;
+      $('calibStatus').innerHTML = "<b>Étape 2 :</b> Cliquez sur 🎯 Calibrer pour définir les prix exacts.";
       
       runAnalysis();
     } catch(err) {
-      alert("Erreur lors du dessin sur le canvas : " + err.message);
-      setStatus('Erreur');
+      alert("Erreur: " + err.message);
     } finally {
-      URL.revokeObjectURL(url); // Libère la mémoire
+      URL.revokeObjectURL(url);
     }
   };
-
-  img.onerror = () => {
-    alert("Le navigateur n'a pas pu lire ce fichier image. Essayez de le convertir en JPG ou PNG standard.");
-    setStatus('Erreur format');
-    URL.revokeObjectURL(url);
-  };
-
   img.src = url;
 });
 
-/* ALGORITHME D'ANALYSE */
+/* ALGORITHME */
 function colorDist(a, b){ return Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])+Math.abs(a[2]-b[2]); }
 function classifyPixel(r, g, b, a){
   if(a < 50) return 0;
@@ -377,7 +316,6 @@ function runAnalysis(){
     const data = S.ctx.getImageData(0, 0, W, H).data;
     const cls = new Uint8Array(W * H);
     
-    // On ignore 5% du haut et 15% du bas
     const yStart = Math.floor(H * 0.05);
     const yEnd = Math.floor(H * 0.85);
 
@@ -403,7 +341,7 @@ function runAnalysis(){
       while(x < W && colAct[x] >= 2) x++;
       const x2 = x - 1;
       const width = x2 - x1 + 1;
-      if(width > 30) continue; // Ignore les grandes lignes
+      if(width > 30) continue;
 
       let yTop = yEnd, yBot = yStart;
       for(let yy = yStart; yy < yEnd; yy++){
@@ -429,8 +367,8 @@ function runAnalysis(){
     }
 
     if(candles.length < 5){
-      setStatus('Échec analyse');
-      $('tabSignal').innerHTML = '<div class="warnbox">Pas assez de bougies détectées. Assurez-vous que les bougies sont bien visibles (pas trop petites, ni floues).</div>';
+      setStatus('Échec');
+      $('tabSignal').innerHTML = '<div class="warnbox">Pas assez de bougies visibles.</div>';
       return;
     }
 
@@ -441,25 +379,14 @@ function runAnalysis(){
     }
 
     S.candles = candles;
-    S.swings = swings;
-    S.analysis = {
-      minY: Math.min(...candles.map(c => c.high)),
-      maxY: Math.max(...candles.map(c => c.low))
-    };
-
     const lastCandle = candles[candles.length - 1];
     const lastSwingHigh = swings.filter(s => s.type === 'H').slice(-1)[0];
     const lastSwingLow = swings.filter(s => s.type === 'L').slice(-1)[0];
     const isUptrend = lastSwingHigh && lastSwingLow && lastSwingHigh.i > lastSwingLow.i;
 
-    S.smc = {
-      structure: { name: isUptrend ? 'Haussier' : 'Baissier', bias: isUptrend ? 'up' : 'down' }
-    };
-
     S.setups = {
       bias: isUptrend ? 'up' : 'down', 
       currentPrice: yToPrice(lastCandle.mid), 
-      profile: profile(),
       long: { 
         favored: isUptrend, 
         entry: isUptrend && lastSwingLow ? yToPrice(lastSwingLow.y + 5) : null, 
@@ -484,13 +411,10 @@ function runAnalysis(){
     drawOverlay();
     setStatus(`OK · ${candles.length} bougies`);
   }catch(err){
-    console.error(err);
     setStatus('Erreur');
-    $('tabSignal').innerHTML = `<div class="warnbox">Erreur de calcul : ${err.message}</div>`;
   }
 }
 
-/* RENDU RESULTATS */
 function renderAll(){
   const st = S.setups;
   if(!st) return;
@@ -518,11 +442,9 @@ function renderAll(){
       </div>
     </div>
   `;
-  $('tabSmc').innerHTML = `<p>Structure : <strong>${S.smc.structure.name}</strong></p><p>Bougies analysées : ${S.candles.length}</p>`;
-  $('tabReport').innerHTML = `<p>Rapport généré à ${new Date().toLocaleTimeString()}</p>`;
+  $('tabSmc').innerHTML = `<p>Structure : <strong>${st.bias === 'up' ? 'Haussier' : 'Baissier'}</strong></p>`;
 }
 
-/* DESSIN OVERLAY */
 function drawOverlay(){
   const o = S.octx, W = S.ov.width, H = S.ov.height;
   o.clearRect(0, 0, W, H);
@@ -542,10 +464,6 @@ function drawOverlay(){
   }
 
   if(S.calibMode){
-    if(S.mouse){
-      o.strokeStyle = 'rgba(41,98,255,.8)'; o.lineWidth = 1;
-      o.beginPath(); o.moveTo(0, S.mouse.y); o.lineTo(W, S.mouse.y); o.stroke();
-    }
     S.calibPoints.forEach((p, i) => {
       o.fillStyle = '#2962ff';
       o.beginPath(); o.arc(W - 20, p.y, 5, 0, Math.PI*2); o.fill();
@@ -553,55 +471,50 @@ function drawOverlay(){
   }
 }
 
-/* CALIBRATION AU CLIC */
-function startClickCalibration(){
+/* CALIBRATION */
+$('btnClick').addEventListener('click', () => {
   if(!S.loaded) return;
-  S.calibMode = true; S.calibPoints = [];
-  $('btnClick').classList.add('active');
-  $('btnClick').textContent = '🎯 Annuler Calibration';
-  $('calibStatus').innerHTML = '<span style="color:var(--acc)">Touchez un prix en HAUT à droite.</span>';
-  $('calibInputBox').style.display = 'none';
-}
+  if(S.calibMode){
+    cancelClickCalibration();
+  } else {
+    S.calibMode = true; S.calibPoints = [];
+    $('btnClick').classList.add('active');
+    $('btnClick').textContent = 'Annuler';
+    $('ov').classList.add('calibrating'); // Active le blocage du scroll tactile
+    $('calibStatus').innerHTML = '<span style="color:var(--acc)">Touchez un prix en HAUT à droite.</span>';
+    $('calibInputBox').style.display = 'none';
+  }
+});
 
 function cancelClickCalibration(){
   S.calibMode = false; S.calibPoints = [];
   $('btnClick').classList.remove('active');
-  $('btnClick').textContent = '🎯 Calibrer au clic';
+  $('btnClick').textContent = '🎯 Calibrer';
+  $('ov').classList.remove('calibrating');
   $('calibInputBox').style.display = 'none';
   drawOverlay();
 }
 
-const handleChartInteraction = (clientX, clientY) => {
+// Gestion unifiée du tactile et de la souris
+$('ov').addEventListener('pointerdown', e => {
   if(!S.calibMode) return;
   const r = S.ov.getBoundingClientRect();
-  const y = (clientY - r.top) * (S.ov.height / r.height);
+  const y = (e.clientY - r.top) * (S.ov.height / r.height);
   
   const box = $('calibInputBox');
   const rect = $('chartWrap').getBoundingClientRect();
   
-  let left = clientX - rect.left;
-  let top = clientY - rect.top;
+  let left = e.clientX - rect.left;
+  let top = e.clientY - rect.top;
   
   box.style.left = Math.max(110, Math.min(left, rect.width - 110)) + 'px';
-  box.style.top = Math.max(60, top) + 'px';
+  box.style.top = Math.max(80, top) + 'px';
   box.style.display = 'block';
   
   $('calibPriceInput').value = '';
   setTimeout(() => $('calibPriceInput').focus(), 100);
   
   box.dataset.clickY = y;
-};
-
-$('ov').addEventListener('mousedown', e => handleChartInteraction(e.clientX, e.clientY));
-$('ov').addEventListener('touchstart', e => {
-  if(e.touches.length === 1) handleChartInteraction(e.touches[0].clientX, e.touches[0].clientY);
-}, {passive: true});
-
-$('ov').addEventListener('mousemove', e => {
-  if(!S.loaded || !S.calibMode) return;
-  const r = S.ov.getBoundingClientRect();
-  S.mouse = { y: (e.clientY - r.top) * (S.ov.height / r.height) };
-  drawOverlay();
 });
 
 window.submitCalibPrice = function(){
@@ -610,12 +523,10 @@ window.submitCalibPrice = function(){
   
   const y = parseFloat($('calibInputBox').dataset.clickY);
   S.calibPoints.push({ y, price: val });
-  
   $('calibInputBox').style.display = 'none';
   
   if(S.calibPoints.length === 1){
     $('calibStatus').innerHTML = '<span style="color:var(--acc)">1er prix OK. Touchez un prix en BAS à droite.</span>';
-    drawOverlay();
   } else {
     const [p1, p2] = S.calibPoints;
     S.priceCal = {
@@ -631,20 +542,14 @@ window.submitCalibPrice = function(){
 
 window.cancelCalibPrice = function(){ $('calibInputBox').style.display = 'none'; };
 
-/* ÉVÉNEMENTS GLOBAUX */
-$('btnClick').addEventListener('click', () => {
-  if(S.calibMode) cancelClickCalibration(); else startClickCalibration();
-});
-
 $('btnClear').addEventListener('click', () => {
-  S.loaded = false; S.analysis = null; S.smc = null; S.calibMode = false;
+  S.loaded = false; S.priceCal = null;
   S.ctx.clearRect(0,0,S.cv.width,S.cv.height); S.octx.clearRect(0,0,S.ov.width,S.ov.height);
   $('canvasInner').style.display = 'none'; $('emptyChart').style.display = 'block';
-  $('btnClear').disabled = true; $('btnClick').disabled = true; $('btnExport').disabled = true;
+  $('btnClear').disabled = true; $('btnClick').disabled = true;
   cancelClickCalibration();
   $('tabSignal').innerHTML = '<div class="empty-chart">Chargez une image.</div>';
-  $('tabSmc').innerHTML = '<div class="empty-chart">En attente...</div>';
-  $('tabReport').innerHTML = '<div class="empty-chart">En attente...</div>';
+  $('calibStatus').innerHTML = '';
   setStatus('Prêt');
 });
 
