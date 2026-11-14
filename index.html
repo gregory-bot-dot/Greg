@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — Précision Chirurgicale</title>
+<title>ChartVision Pro — MTF</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -12,17 +12,10 @@
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
   html,body{height:100%; margin:0; padding:0; overflow:hidden;}
-  body{
-    background:var(--bg); color:var(--txt); 
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    display:flex; flex-direction:column;
-  }
+  body{ background:var(--bg); color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:flex; flex-direction:column; }
   
   /* HEADER */
-  header{
-    padding:10px 15px; background:#0e1219; border-bottom:1px solid var(--line);
-    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-  }
+  header{ padding:10px 15px; background:#0e1219; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   header h1{font-size:18px;margin:0;font-weight:700; white-space:nowrap;}
   header h1 span{color:var(--acc)}
   
@@ -34,18 +27,13 @@
     background-repeat: no-repeat; background-position: right 10px top 50%; background-size: 10px auto;
   }
   
-  /* TOGGLE ALERTES */
-  .alert-toggle {
-    display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted);
-    cursor: pointer; padding: 4px 8px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line);
-  }
+  .alert-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; padding: 4px 8px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line); }
   .alert-toggle input { margin: 0; accent-color: var(--up); }
 
   /* LAYOUT */
   .app{display:flex; flex:1; overflow:hidden; position:relative;}
   @media(max-width:900px){ .app{flex-direction:column;} }
   
-  /* TOAST ALERTE */
   #toast {
     position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
     background: var(--acc); color: white; padding: 8px 16px; border-radius: 20px;
@@ -55,28 +43,38 @@
   @keyframes pop { 0% { transform: translate(-50%, -10px); opacity: 0; } 100% { transform: translate(-50%, 0); opacity: 1; } }
 
   /* GRAPHIQUE */
-  .chart-container{
-    flex:1; position:relative; background:#05080c;
-    min-height: 300px; 
-  }
+  .chart-container{ flex:1; position:relative; background:#05080c; min-height: 300px; }
   #chart{ position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
   
-  /* PANNEAU RESULTATS */
-  .panel{
-    width:340px; background:var(--panel); border-left:1px solid var(--line);
-    display:flex; flex-direction:column; overflow-y:auto;
-  }
-  @media(max-width:900px){ 
-    .panel{width:100%; height:45vh; border-left:none; border-top:1px solid var(--line);} 
-  }
+  /* PANNEAU */
+  .panel{ width:340px; background:var(--panel); border-left:1px solid var(--line); display:flex; flex-direction:column; overflow-y:auto; }
+  @media(max-width:900px){ .panel{width:100%; height:48vh; border-left:none; border-top:1px solid var(--line);} }
   
+  /* MTF BADGES */
+  .mtf-row { display: flex; gap: 6px; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.2); }
+  .mtf-badge {
+    flex: 1; text-align: center; padding: 6px; border-radius: 6px; font-size: 11px; font-weight: bold;
+    border: 1px solid var(--line); background: var(--panel2); color: var(--muted);
+  }
+  .mtf-badge.up { border-color: var(--up); color: var(--up); background: rgba(38,166,154,0.1); }
+  .mtf-badge.down { border-color: var(--down); color: var(--down); background: rgba(239,83,80,0.1); }
+
+  /* STATUT DE TRADE */
+  #tradeStatus {
+    padding: 12px 15px; font-weight: bold; font-size: 13px; text-align: center;
+    border-bottom: 1px solid var(--line); transition: 0.3s;
+  }
+  .status-wait { background: rgba(255,152,0,0.15); color: var(--warn); }
+  .status-entry { background: rgba(41,98,255,0.2); color: var(--acc); border-left: 4px solid var(--acc); }
+  .status-progress { background: rgba(38,166,154,0.15); color: var(--up); }
+  .status-invalid { background: rgba(239,83,80,0.15); color: var(--down); }
+  .status-confluence { background: rgba(156,39,176,0.2); color: #e1bee7; border-left: 4px solid #9c27b0; }
+
   .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;}
   
   .setup{padding:12px 15px; border-bottom:1px solid var(--line); transition: 0.3s;}
   .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.08) 0%, transparent 100%);}
   .setup.sell{background:linear-gradient(180deg, rgba(239,83,80,0.08) 0%, transparent 100%);}
-  
-  /* Griser les setups contre-tendance */
   .setup.counter-trend { opacity: 0.4; filter: grayscale(1); }
   
   .setup-title{font-weight:bold; font-size:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;}
@@ -87,7 +85,6 @@
   .cell small{display:block; color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:2px;}
   .cell b{font-family:monospace; font-size:13px; color:#fff;}
   
-  /* Prix d'entrée en évidence */
   .cell.precision { border-color: var(--acc); background: rgba(41,98,255,0.1); }
   .cell.precision b { color: var(--acc); }
 
@@ -103,23 +100,11 @@
   <h1>Chart<span>Vision</span></h1>
   <div class="controls">
     <select id="symbolSelect">
-      <optgroup label="Métaux">
-        <option value="XAUUSD">🥇 XAU/USD</option>
-        <option value="XAGUSD">🥈 XAG/USD</option>
-      </optgroup>
-      <optgroup label="Indices">
-        <option value="US500">🇺🇸 S&P 500</option>
-        <option value="US100">🇺🇸 NASDAQ</option>
-      </optgroup>
-      <optgroup label="Forex">
-        <option value="EURUSD">🇪🇺 EUR/USD</option>
-        <option value="GBPUSD">🇬🇧 GBP/USD</option>
-      </optgroup>
-      <optgroup label="Crypto">
-        <option value="BTCUSD">₿ BTC/USD</option>
-      </optgroup>
+      <option value="XAUUSD">🥇 XAU/USD</option>
+      <option value="US500">🇺🇸 S&P 500</option>
+      <option value="EURUSD">🇪🇺 EUR/USD</option>
+      <option value="BTCUSD">₿ BTC/USD</option>
     </select>
-    
     <select id="tfSelect">
       <option value="1m">1m</option>
       <option value="5m">5m</option>
@@ -128,23 +113,25 @@
       <option value="4h">4h</option>
     </select>
   </div>
-  
-  <label class="alert-toggle">
-    <input type="checkbox" id="alertToggle"> Alertes
-  </label>
+  <label class="alert-toggle"><input type="checkbox" id="alertToggle"> Alertes</label>
 </header>
 
 <div class="app">
   <div id="toast">Alerte</div>
-  
-  <div class="chart-container" id="chartContainer">
-    <div id="chart"></div>
-  </div>
+  <div class="chart-container" id="chartContainer"><div id="chart"></div></div>
   
   <div class="panel">
+    <!-- BADGES TENDANCE MTF -->
+    <div class="mtf-row">
+      <div class="mtf-badge" id="badge-current">... 1m</div>
+      <div class="mtf-badge" id="badge-15m">... 15m</div>
+      <div class="mtf-badge" id="badge-4h">... 4h</div>
+    </div>
+
+    <div id="tradeStatus" class="status-wait">Calcul du statut...</div>
+
     <div class="panel-header">
-      <div><span class="live-dot"></span> Analyse SMC</div>
-      <div id="trendBadge" style="font-size:11px; padding:3px 8px; border-radius:10px; background:#222;">Filtre: ...</div>
+      <div><span class="live-dot"></span> Setup SMC</div>
     </div>
     <div id="analysisContent">
       <div class="loading-text">Initialisation...</div>
@@ -154,18 +141,20 @@
 
 <script>
 const $ = id => document.getElementById(id);
-
 let chart, candleSeries;
 let currentData = [];
 let currentSymbol = 'XAUUSD';
-let currentTF = '5m';
+let currentTF = '1m';
 let currentPrice = 0;
 let updateInterval = null;
+let htfInterval = null; // Intervalle pour les tendances HTF
 let priceLines = []; 
 let currentSetup = null; 
 let alertTriggered = false;
 
-// Charger les préférences
+// Stockage des tendances
+let trends = { current: 'neutral', m15: 'neutral', h4: 'neutral' };
+
 if(localStorage.getItem('cv_symbol')) currentSymbol = localStorage.getItem('cv_symbol');
 if(localStorage.getItem('cv_tf')) currentTF = localStorage.getItem('cv_tf');
 
@@ -176,12 +165,8 @@ function getDecimals(symbol) {
   return 5;
 }
 
-/* =========================================
-   INITIALISATION DU GRAPHIQUE
-   ========================================= */
 function initChart() {
   const chartContainer = $('chart');
-  
   chart = LightweightCharts.createChart(chartContainer, {
     layout: { background: { type: 'solid', color: '#05080c' }, textColor: '#d1d4dc' },
     grid: { vertLines: { color: '#1a1f2c' }, horzLines: { color: '#1a1f2c' } },
@@ -189,263 +174,257 @@ function initChart() {
     rightPriceScale: { borderColor: '#2f3a52' },
     timeScale: { borderColor: '#2f3a52', timeVisible: true, secondsVisible: false },
   });
-  
-  candleSeries = chart.addCandlestickSeries({
-    upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
-    wickUpColor: '#26a69a', wickDownColor: '#ef5350',
-  });
-
+  candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
   const resizeObserver = new ResizeObserver(entries => {
     if (entries.length === 0 || entries[0].target !== chartContainer) return;
     const newRect = entries[0].contentRect;
     chart.applyOptions({ width: newRect.width, height: newRect.height });
   });
   resizeObserver.observe(chartContainer);
-  
   $('symbolSelect').value = currentSymbol;
   $('tfSelect').value = currentTF;
+  $('badge-current').textContent = currentTF;
 }
 
 /* =========================================
-   RÉCUPÉRATION DES DONNÉES
+   RÉCUPÉRATION DES DONNÉES (Multi-Timeframe)
    ========================================= */
-async function fetchData() {
-  if (!candleSeries) return;
-
-  const targetUrl = `https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=200&t=${Date.now()}`;
-  let response;
-
+async function fetchUrl(targetUrl) {
   try {
-    response = await fetch(targetUrl);
-    if (!response.ok) throw new Error("Direct fail");
-  } catch (e1) {
-    try {
-      const proxy1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-      response = await fetch(proxy1);
-      if (!response.ok) throw new Error("Proxy1 fail");
-    } catch (e2) {
-      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Réseau indisponible ou marché fermé.</div>`;
-      return;
+    let res = await fetch(targetUrl);
+    if (res.ok) return await res.json();
+  } catch(e) {}
+  try {
+    let res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`);
+    if (res.ok) return await res.json();
+  } catch(e) {}
+  return null;
+}
+
+// Fonction pour calculer la tendance d'un jeu de données (via EMA 50)
+function getTrend(data) {
+  if (!data || data.length < 50) return 'neutral';
+  const k = 2 / (50 + 1);
+  let ema = data.slice(0, 50).reduce((acc, c) => acc + parseFloat(c.close), 0) / 50;
+  for (let i = 50; i < data.length; i++) {
+    ema = (parseFloat(data[i].close) - ema) * k + ema;
+  }
+  const lastPrice = parseFloat(data[data.length - 1].close);
+  return lastPrice > ema ? 'up' : 'down';
+}
+
+async function fetchHTF() {
+    // On ne fetch pas si on est déjà en 4h
+    const fetch15m = currentTF !== '15m' && currentTF !== '1h' && currentTF !== '4h';
+    const fetch4h = currentTF !== '4h';
+
+    if (fetch15m) {
+        const url15 = `https://biquote.io/api/${currentSymbol}/ohlc?interval=15m&limit=100&t=${Date.now()}`;
+        const res15 = await fetchUrl(url15);
+        if (res15 && res15.bars) {
+            trends.m15 = getTrend(res15.bars);
+            updateBadge('badge-15m', '15m', trends.m15);
+        }
+    } else {
+        updateBadge('badge-15m', '15m', 'neutral', true); // Ignoré
     }
+
+    if (fetch4h) {
+        const url4h = `https://biquote.io/api/${currentSymbol}/ohlc?interval=4h&limit=100&t=${Date.now()}`;
+        const res4h = await fetchUrl(url4h);
+        if (res4h && res4h.bars) {
+            trends.h4 = getTrend(res4h.bars);
+            updateBadge('badge-4h', '4h', trends.h4);
+        }
+    } else {
+        updateBadge('badge-4h', '4h', 'neutral', true);
+    }
+}
+
+function updateBadge(id, label, trend, ignored = false) {
+    const el = $(id);
+    if(ignored) { el.style.opacity = 0.3; el.textContent = label; return; }
+    el.className = 'mtf-badge ' + trend;
+    el.textContent = `${label} : ${trend === 'up' ? 'HAUSSE' : 'BAISSE'}`;
+}
+
+async function fetchMainData() {
+  if (!candleSeries) return;
+  const targetUrl = `https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=200&t=${Date.now()}`;
+  const result = await fetchUrl(targetUrl);
+  
+  if (!result || !result.bars || result.bars.length === 0) {
+      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--warn)">Données indisponibles (marché fermé ?)</div>`;
+      return;
   }
 
-  try {
-    const result = await response.json();
-    const bars = result.bars || [];
-    
-    if (bars.length === 0) {
-      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--warn)">Marché fermé.</div>`;
-      return;
-    }
-
-    const parsedData = bars.map(d => ({
-      time: Math.floor(new Date(d.openTime).getTime() / 1000),
-      open: parseFloat(d.open),
-      high: parseFloat(d.high),
-      low: parseFloat(d.low),
-      close: parseFloat(d.close)
-    }));
-
-    const uniqueData = [];
-    const seenTimes = new Set();
-    for(const item of parsedData) {
-      if(!seenTimes.has(item.time) && !isNaN(item.time)) {
-        seenTimes.add(item.time);
-        uniqueData.push(item);
-      }
-    }
-    
-    currentData = uniqueData.sort((a, b) => a.time - b.time);
-    candleSeries.setData(currentData);
-    
-    if (currentData.length > 0) {
-        currentPrice = currentData[currentData.length - 1].close;
-        analyzeSMC();
-    }
-    
-  } catch (err) {
-    $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Erreur de formatage.</div>`;
+  const parsedData = result.bars.map(d => ({ time: Math.floor(new Date(d.openTime).getTime() / 1000), open: parseFloat(d.open), high: parseFloat(d.high), low: parseFloat(d.low), close: parseFloat(d.close) }));
+  const uniqueData = []; const seenTimes = new Set();
+  for(const item of parsedData) { if(!seenTimes.has(item.time) && !isNaN(item.time)) { seenTimes.add(item.time); uniqueData.push(item); } }
+  currentData = uniqueData.sort((a, b) => a.time - b.time);
+  
+  candleSeries.setData(currentData);
+  
+  if (currentData.length > 0) { 
+      currentPrice = currentData[currentData.length - 1].close; 
+      trends.current = getTrend(currentData);
+      updateBadge('badge-current', currentTF, trends.current);
+      analyzeSMC(); 
   }
 }
 
 /* =========================================
-   ANALYSE SMC PRÉCISE & FILTRE DE TENDANCE
+   ANALYSE SMC & LOGIQUE MTF
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 50) return;
-
   try {
-    // 1. Calcul de l'EMA 50 pour le filtre de tendance
-    const ema50 = calculateEMA(50);
-    const isTrendUp = currentPrice > ema50;
-    const isTrendDown = currentPrice < ema50;
-    
-    // Mise à jour du badge de tendance
-    const trendBadge = $('trendBadge');
-    if (isTrendUp) {
-        trendBadge.textContent = "Tendance: HAUSSIÈRE";
-        trendBadge.style.background = "rgba(38,166,154,0.2)";
-        trendBadge.style.color = "var(--up)";
-    } else {
-        trendBadge.textContent = "Tendance: BAISSIÈRE";
-        trendBadge.style.background = "rgba(239,83,80,0.2)";
-        trendBadge.style.color = "var(--down)";
-    }
-
-    // 2. Détection des Order Blocks
-    let lastOBbull = null;
-    let lastOBbear = null;
-    
-    // On cherche dans les 15 dernières bougies pour trouver l'OB le plus frais
+    // Détection OB sur le TF actuel
+    let lastOBbull = null; let lastOBbear = null;
     for (let i = currentData.length - 15; i < currentData.length - 1; i++) {
-      const c = currentData[i];
-      const prev = currentData[i-1];
-      
-      // OB Haussier (Rouge -> Grosse Verte)
-      if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
-        lastOBbull = { top: prev.high, bottom: prev.low };
-      }
-      // OB Baissier (Verte -> Grosse Rouge)
-      if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
-        lastOBbear = { top: prev.high, bottom: prev.low };
-      }
+      const c = currentData[i]; const prev = currentData[i-1];
+      if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) lastOBbull = { top: prev.high, bottom: prev.low };
+      if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) lastOBbear = { top: prev.high, bottom: prev.low };
     }
 
-    // 3. Calcul chirurgical des setups (Entrée à 50% de l'OB)
-    
-    // --- SETUP ACHAT ---
+    // Setup ACHAT
     let longEntry, longSL, longTP;
     if (lastOBbull) {
-        // Entrée au milieu exact de l'Order Block
         longEntry = lastOBbull.top - ((lastOBbull.top - lastOBbull.bottom) / 2);
-        // Stop Loss juste en dessous de l'OB
         longSL = lastOBbull.bottom - (lastOBbull.bottom * 0.0002); 
-    } else {
-        longEntry = currentPrice * 0.999;
-        longSL = longEntry * 0.998;
-    }
-    let riskLong = Math.abs(longEntry - longSL);
-    longTP = longEntry + (riskLong * 2); // R:R 2.0
+    } else { longEntry = currentPrice * 0.999; longSL = longEntry * 0.998; }
+    longTP = longEntry + (Math.abs(longEntry - longSL) * 2);
 
-    // --- SETUP VENTE ---
+    // Setup VENTE
     let shortEntry, shortSL, shortTP;
     if (lastOBbear) {
-        // Entrée au milieu exact de l'Order Block
         shortEntry = lastOBbear.bottom + ((lastOBbear.top - lastOBbear.bottom) / 2);
-        // Stop Loss juste au dessus de l'OB
         shortSL = lastOBbear.top + (lastOBbear.top * 0.0002);
-    } else {
-        shortEntry = currentPrice * 1.001;
-        shortSL = shortEntry * 1.002;
-    }
-    let riskShort = Math.abs(shortEntry - shortSL);
-    shortTP = shortEntry - (riskShort * 2); // R:R 2.0
+    } else { shortEntry = currentPrice * 1.001; shortSL = shortEntry * 1.002; }
+    shortTP = shortEntry - (Math.abs(shortEntry - shortSL) * 2);
 
     currentSetup = {
-        trend: isTrendUp ? 'up' : 'down',
         long: { entry: longEntry, sl: longSL, tp: longTP },
         short: { entry: shortEntry, sl: shortSL, tp: shortTP }
     };
 
-    renderPanel(isTrendUp, lastOBbull, lastOBbear, longEntry, longSL, longTP, shortEntry, shortSL, shortTP);
-    drawLines(longEntry, longSL, longTP, shortEntry, shortSL, shortTP, isTrendUp);
+    // LOGIQUE DE CONFLUENCE MTF
+    // On considère qu'il y a confluence si le TF actuel et au moins un TF supérieur sont alignés
+    let isConfluent = false;
+    let conflictDetected = false;
+    
+    // Est-ce que le TF actuel est haussier ?
+    const isCurrentUp = trends.current === 'up';
 
-  } catch(e) {
-    console.error("Erreur d'analyse:", e);
-  }
-}
-
-// Fonction utilitaire pour l'EMA
-function calculateEMA(period) {
-    if(currentData.length < period) return currentPrice;
-    const k = 2 / (period + 1);
-    let ema = currentData.slice(0, period).reduce((acc, c) => acc + c.close, 0) / period;
-    for (let i = period; i < currentData.length; i++) {
-        ema = (currentData[i].close - ema) * k + ema;
+    if (isCurrentUp) {
+        // On veut acheter. Est-ce que la 15m ou la 4h est baissière ?
+        if (trends.m15 === 'down' || trends.h4 === 'down') conflictDetected = true;
+        if (trends.m15 === 'up' && trends.h4 === 'up') isConfluent = true;
+    } else {
+        // On veut vendre. Est-ce que la 15m ou la 4h est haussière ?
+        if (trends.m15 === 'up' || trends.h4 === 'up') conflictDetected = true;
+        if (trends.m15 === 'down' && trends.h4 === 'down') isConfluent = true;
     }
-    return ema;
+
+    updateTradeStatus(isCurrentUp, currentPrice, isConfluent, conflictDetected);
+    renderPanel(isCurrentUp, longEntry, longSL, longTP, shortEntry, shortSL, shortTP);
+    drawLines(isCurrentUp);
+
+  } catch(e) { console.error("Erreur:", e); }
 }
 
-/* =========================================
-   AFFICHAGE HTML
-   ========================================= */
-function renderPanel(isTrendUp, obBull, obBear, lE, lS, lT, sE, sS, sT) {
+function updateTradeStatus(isTrendUp, price, isConfluent, conflict) {
+    const statusDiv = $('tradeStatus');
+    const setup = isTrendUp ? currentSetup.long : currentSetup.short;
+    const tolerance = price * 0.0002; 
+    
+    statusDiv.className = ''; 
+
+    // Priorité 1 : Le prix a touché le SL
+    if ((isTrendUp && price < setup.sl) || (!isTrendUp && price > setup.sl)) {
+        statusDiv.textContent = "🛑 Setup invalidé (SL touché).";
+        statusDiv.classList.add('status-invalid');
+        return;
+    }
+    
+    // Priorité 2 : Le prix a touché le TP
+    if ((isTrendUp && price >= setup.tp) || (!isTrendUp && price <= setup.tp)) {
+        statusDiv.textContent = "🎯 Objectif TP atteint !";
+        statusDiv.classList.add('status-progress');
+        return;
+    }
+
+    // Priorité 3 : On est dans la zone d'entrée
+    if (price >= setup.entry - tolerance && price <= setup.entry + tolerance) {
+        if (conflict) {
+            statusDiv.textContent = "⚠️ Entrée atteinte mais CONFLIT MTF";
+            statusDiv.classList.add('status-wait'); // Orange pour avertir
+        } else if (isConfluent) {
+            statusDiv.textContent = "🔥 CONFLUENCE PARFAITE ! ENTRÉE !";
+            statusDiv.classList.add('status-confluence');
+        } else {
+            statusDiv.textContent = "⚡ PRIX DANS LA ZONE D'ENTRÉE !";
+            statusDiv.classList.add('status-entry');
+        }
+        return;
+    }
+
+    // Priorité 4 : Le prix n'est pas encore arrivé
+    if ((isTrendUp && price > setup.entry) || (!isTrendUp && price < setup.entry)) {
+        statusDiv.textContent = `⏳ Attendre le repli vers ${setup.entry.toFixed(2)}`;
+        statusDiv.classList.add('status-wait');
+    } else {
+        statusDiv.textContent = "🚀 Trade en cours vers le TP.";
+        statusDiv.classList.add('status-progress');
+    }
+}
+
+function renderPanel(isTrendUp, lE, lS, lT, sE, sS, sT) {
   const dec = getDecimals(currentSymbol);
   const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
   
-  // Classes pour griser les setups contre-tendance
-  const longClass = isTrendUp ? 'buy' : 'buy counter-trend';
-  const shortClass = !isTrendUp ? 'sell' : 'sell counter-trend';
+  // On grise le setup qui va à l'encontre de la 4h (le filtre ultime)
+  const longClass = (trends.h4 === 'down') ? 'buy counter-trend' : 'buy';
+  const shortClass = (trends.h4 === 'up') ? 'sell counter-trend' : 'sell';
 
   let html = `
-    <div style="padding:12px 15px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <div style="font-size:12px; color:var(--muted);">Prix actuel</div>
-        <div style="font-size:16px; font-weight:bold;">${fmt(currentPrice)}</div>
-      </div>
-      <div style="text-align:right; font-size:11px; color:var(--muted);">
-        Filtre EMA 50<br><b>R:R Fixé à 2.0</b>
-      </div>
+    <div style="padding:10px 15px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
+      <div><div style="font-size:11px; color:var(--muted);">Prix actuel</div><div style="font-size:15px; font-weight:bold;">${fmt(currentPrice)}</div></div>
+      <div style="text-align:right; font-size:10px; color:var(--muted);">R:R Fixé à 2.0</div>
     </div>
-  `;
-
-  // SETUP ACHAT
-  html += `
     <div class="setup ${longClass}">
-      <div class="setup-title">
-        <span>🟢 ACHAT (50% OB)</span>
-        ${isTrendUp ? '<span style="font-size:10px;background:var(--up);color:#000;padding:2px 6px;border-radius:10px;">FAVORI</span>' : '<span style="font-size:10px;color:var(--down);">⚠ Contre-tendance</span>'}
-      </div>
+      <div class="setup-title"><span>🟢 ACHAT (50% OB)</span>${isTrendUp ? '<span style="font-size:10px;background:var(--up);color:#000;padding:2px 6px;border-radius:10px;">FAVORI</span>' : ''}</div>
       <div class="trade-grid">
-        <div class="cell precision"><small>Entrée Chirurgicale</small><b>${fmt(lE)}</b></div>
+        <div class="cell precision"><small>Entrée</small><b>${fmt(lE)}</b></div>
         <div class="cell"><small>Stop-Loss</small><b>${fmt(lS)}</b></div>
-        <div class="cell"><small>Take-Profit (R:R 2)</small><b>${fmt(lT)}</b></div>
+        <div class="cell"><small>TP (R:R 2)</small><b>${fmt(lT)}</b></div>
       </div>
     </div>
-
     <div class="setup ${shortClass}">
-      <div class="setup-title">
-        <span>🔴 VENTE (50% OB)</span>
-        ${!isTrendUp ? '<span style="font-size:10px;background:var(--down);color:#fff;padding:2px 6px;border-radius:10px;">FAVORI</span>' : '<span style="font-size:10px;color:var(--up);">⚠ Contre-tendance</span>'}
-      </div>
+      <div class="setup-title"><span>🔴 VENTE (50% OB)</span>${!isTrendUp ? '<span style="font-size:10px;background:var(--down);color:#fff;padding:2px 6px;border-radius:10px;">FAVORI</span>' : ''}</div>
       <div class="trade-grid">
-        <div class="cell precision"><small>Entrée Chirurgicale</small><b>${fmt(sE)}</b></div>
+        <div class="cell precision"><small>Entrée</small><b>${fmt(sE)}</b></div>
         <div class="cell"><small>Stop-Loss</small><b>${fmt(sS)}</b></div>
-        <div class="cell"><small>Take-Profit (R:R 2)</small><b>${fmt(sT)}</b></div>
+        <div class="cell"><small>TP (R:R 2)</small><b>${fmt(sT)}</b></div>
       </div>
     </div>
   `;
-
   $('analysisContent').innerHTML = html;
 }
 
-/* =========================================
-   DESSIN SUR LE GRAPHIQUE (UNIQUEMENT LE FAVORI)
-   ========================================= */
-function drawLines(lE, lS, lT, sE, sS, sT, isTrendUp) {
+function drawLines(isTrendUp) {
   priceLines.forEach(line => candleSeries.removePriceLine(line));
   priceLines = [];
-  
+  const setup = isTrendUp ? currentSetup.long : currentSetup.short;
   const addLine = (price, color, title, style) => {
     const line = candleSeries.createPriceLine({ price, color, lineWidth: 2, lineStyle: style, axisLabelVisible: true, title });
     priceLines.push(line);
   };
+  addLine(setup.entry, '#2962ff', 'Entrée', LightweightCharts.LineStyle.Solid);
+  addLine(setup.sl, '#ef5350', 'SL', LightweightCharts.LineStyle.Dashed);
+  addLine(setup.tp, '#26a69a', 'TP (RR2)', LightweightCharts.LineStyle.Dashed);
 
-  // On affiche uniquement les lignes du setup favori pour rester épuré
-  if (isTrendUp) {
-      addLine(lE, '#2962ff', 'Entrée', LightweightCharts.LineStyle.Solid);
-      addLine(lS, '#ef5350', 'SL', LightweightCharts.LineStyle.Dashed);
-      addLine(lT, '#26a69a', 'TP (RR2)', LightweightCharts.LineStyle.Dashed);
-  } else {
-      addLine(sE, '#2962ff', 'Entrée', LightweightCharts.LineStyle.Solid);
-      addLine(sS, '#ef5350', 'SL', LightweightCharts.LineStyle.Dashed);
-      addLine(sT, '#26a69a', 'TP (RR2)', LightweightCharts.LineStyle.Dashed);
-  }
-
-  // GESTION DES ALERTES
   if ($('alertToggle').checked && !alertTriggered) {
-      const setup = isTrendUp ? currentSetup.long : currentSetup.short;
-      
       if (Math.abs(currentPrice - setup.tp) < (currentPrice * 0.0005)) triggerAlert("Objectif TP Atteint ! 🎯", "var(--up)");
       if (Math.abs(currentPrice - setup.sl) < (currentPrice * 0.0005)) triggerAlert("Stop-Loss Touché ! 🛑", "var(--down)");
       if (Math.abs(currentPrice - setup.entry) < (currentPrice * 0.0002)) triggerAlert("Prix à l'Entrée ! ⚡", "var(--acc)");
@@ -455,41 +434,32 @@ function drawLines(lE, lS, lT, sE, sS, sT, isTrendUp) {
 function triggerAlert(msg, color) {
     alertTriggered = true;
     const toast = $('toast');
-    toast.textContent = msg;
-    toast.style.background = color;
-    toast.style.display = 'block';
+    toast.textContent = msg; toast.style.background = color; toast.style.display = 'block';
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     setTimeout(() => { toast.style.display = 'none'; }, 4000);
     setTimeout(() => { alertTriggered = false; }, 60000);
 }
 
-/* =========================================
-   LANCEMENT
-   ========================================= */
 window.addEventListener('load', () => {
   initChart();
+  
+  // Premier chargement
   setTimeout(() => {
-    fetchData();
+    fetchMainData();
+    fetchHTF(); // Charge les tendances 15m et 4h
+    
+    // Le graphique principal se met à jour toutes les 5 secondes
     if (updateInterval) clearInterval(updateInterval);
-    updateInterval = setInterval(fetchData, 5000); 
+    updateInterval = setInterval(fetchMainData, 5000); 
+
+    // Les tendances HTF se mettent à jour toutes les 60 secondes (elles changent lentement)
+    if (htfInterval) clearInterval(htfInterval);
+    htfInterval = setInterval(fetchHTF, 60000);
   }, 300);
 });
 
-$('symbolSelect').addEventListener('change', (e) => {
-  currentSymbol = e.target.value;
-  localStorage.setItem('cv_symbol', currentSymbol);
-  $('analysisContent').innerHTML = '<div class="loading-text">Chargement...</div>';
-  alertTriggered = false;
-  fetchData();
-});
-
-$('tfSelect').addEventListener('change', (e) => {
-  currentTF = e.target.value;
-  localStorage.setItem('cv_tf', currentTF);
-  $('analysisContent').innerHTML = '<div class="loading-text">Chargement...</div>';
-  alertTriggered = false;
-  fetchData();
-});
+$('symbolSelect').addEventListener('change', (e) => { currentSymbol = e.target.value; localStorage.setItem('cv_symbol', currentSymbol); alertTriggered = false; fetchMainData(); fetchHTF(); });
+$('tfSelect').addEventListener('change', (e) => { currentTF = e.target.value; localStorage.setItem('cv_tf', currentTF); alertTriggered = false; fetchMainData(); fetchHTF(); });
 </script>
 </body>
 </html>
