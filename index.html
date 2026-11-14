@@ -75,7 +75,9 @@
   .setup{padding:12px 15px; border-bottom:1px solid var(--line); transition: 0.3s;}
   .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.08) 0%, transparent 100%);}
   .setup.sell{background:linear-gradient(180deg, rgba(239,83,80,0.08) 0%, transparent 100%);}
-  .setup.counter-trend { opacity: 0.4; filter: grayscale(1); }
+  
+  /* Grisé si c'est le setup contre-tendance */
+  .setup.inactive { opacity: 0.3; filter: grayscale(1); }
   
   .setup-title{font-weight:bold; font-size:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;}
   .setup.buy .setup-title{color:var(--up)} .setup.sell .setup-title{color:var(--down)}
@@ -123,9 +125,9 @@
   <div class="panel">
     <!-- BADGES TENDANCE MTF -->
     <div class="mtf-row">
-      <div class="mtf-badge" id="badge-current">... 1m</div>
-      <div class="mtf-badge" id="badge-15m">... 15m</div>
-      <div class="mtf-badge" id="badge-4h">... 4h</div>
+      <div class="mtf-badge" id="badge-current">...</div>
+      <div class="mtf-badge" id="badge-15m">...</div>
+      <div class="mtf-badge" id="badge-4h">...</div>
     </div>
 
     <div id="tradeStatus" class="status-wait">Calcul du statut...</div>
@@ -147,9 +149,8 @@ let currentSymbol = 'XAUUSD';
 let currentTF = '1m';
 let currentPrice = 0;
 let updateInterval = null;
-let htfInterval = null; // Intervalle pour les tendances HTF
+let htfInterval = null;
 let priceLines = []; 
-let currentSetup = null; 
 let alertTriggered = false;
 
 // Stockage des tendances
@@ -183,11 +184,10 @@ function initChart() {
   resizeObserver.observe(chartContainer);
   $('symbolSelect').value = currentSymbol;
   $('tfSelect').value = currentTF;
-  $('badge-current').textContent = currentTF;
 }
 
 /* =========================================
-   RÉCUPÉRATION DES DONNÉES (Multi-Timeframe)
+   RÉCUPÉRATION DES DONNÉES
    ========================================= */
 async function fetchUrl(targetUrl) {
   try {
@@ -201,7 +201,6 @@ async function fetchUrl(targetUrl) {
   return null;
 }
 
-// Fonction pour calculer la tendance d'un jeu de données (via EMA 50)
 function getTrend(data) {
   if (!data || data.length < 50) return 'neutral';
   const k = 2 / (50 + 1);
@@ -214,31 +213,24 @@ function getTrend(data) {
 }
 
 async function fetchHTF() {
-    // On ne fetch pas si on est déjà en 4h
     const fetch15m = currentTF !== '15m' && currentTF !== '1h' && currentTF !== '4h';
     const fetch4h = currentTF !== '4h';
 
     if (fetch15m) {
-        const url15 = `https://biquote.io/api/${currentSymbol}/ohlc?interval=15m&limit=100&t=${Date.now()}`;
-        const res15 = await fetchUrl(url15);
+        const res15 = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=15m&limit=100&t=${Date.now()}`);
         if (res15 && res15.bars) {
             trends.m15 = getTrend(res15.bars);
             updateBadge('badge-15m', '15m', trends.m15);
         }
-    } else {
-        updateBadge('badge-15m', '15m', 'neutral', true); // Ignoré
-    }
+    } else { updateBadge('badge-15m', '15m', 'neutral', true); }
 
     if (fetch4h) {
-        const url4h = `https://biquote.io/api/${currentSymbol}/ohlc?interval=4h&limit=100&t=${Date.now()}`;
-        const res4h = await fetchUrl(url4h);
+        const res4h = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=4h&limit=100&t=${Date.now()}`);
         if (res4h && res4h.bars) {
             trends.h4 = getTrend(res4h.bars);
             updateBadge('badge-4h', '4h', trends.h4);
         }
-    } else {
-        updateBadge('badge-4h', '4h', 'neutral', true);
-    }
+    } else { updateBadge('badge-4h', '4h', 'neutral', true); }
 }
 
 function updateBadge(id, label, trend, ignored = false) {
@@ -250,11 +242,10 @@ function updateBadge(id, label, trend, ignored = false) {
 
 async function fetchMainData() {
   if (!candleSeries) return;
-  const targetUrl = `https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=200&t=${Date.now()}`;
-  const result = await fetchUrl(targetUrl);
+  const result = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=200&t=${Date.now()}`);
   
   if (!result || !result.bars || result.bars.length === 0) {
-      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--warn)">Données indisponibles (marché fermé ?)</div>`;
+      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--warn)">Données indisponibles.</div>`;
       return;
   }
 
@@ -274,12 +265,13 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   ANALYSE SMC & LOGIQUE MTF
+   ANALYSE SMC & LOGIQUE MTF CORRIGÉE
    ========================================= */
+let activeSetup = null; 
+
 function analyzeSMC() {
   if (currentData.length < 50) return;
   try {
-    // Détection OB sur le TF actuel
     let lastOBbull = null; let lastOBbear = null;
     for (let i = currentData.length - 15; i < currentData.length - 1; i++) {
       const c = currentData[i]; const prev = currentData[i-1];
@@ -287,7 +279,7 @@ function analyzeSMC() {
       if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) lastOBbear = { top: prev.high, bottom: prev.low };
     }
 
-    // Setup ACHAT
+    // Calculs Long
     let longEntry, longSL, longTP;
     if (lastOBbull) {
         longEntry = lastOBbull.top - ((lastOBbull.top - lastOBbull.bottom) / 2);
@@ -295,7 +287,7 @@ function analyzeSMC() {
     } else { longEntry = currentPrice * 0.999; longSL = longEntry * 0.998; }
     longTP = longEntry + (Math.abs(longEntry - longSL) * 2);
 
-    // Setup VENTE
+    // Calculs Short
     let shortEntry, shortSL, shortTP;
     if (lastOBbear) {
         shortEntry = lastOBbear.bottom + ((lastOBbear.top - lastOBbear.bottom) / 2);
@@ -303,89 +295,85 @@ function analyzeSMC() {
     } else { shortEntry = currentPrice * 1.001; shortSL = shortEntry * 1.002; }
     shortTP = shortEntry - (Math.abs(shortEntry - shortSL) * 2);
 
-    currentSetup = {
-        long: { entry: longEntry, sl: longSL, tp: longTP },
-        short: { entry: shortEntry, sl: shortSL, tp: shortTP }
-    };
+    // Détermination du Setup Actif (selon TF actuel)
+    const isCurrentUp = trends.current === 'up';
+    activeSetup = isCurrentUp ? 
+        { type: 'buy', entry: longEntry, sl: longSL, tp: longTP } : 
+        { type: 'sell', entry: shortEntry, sl: shortSL, tp: shortTP };
 
-    // LOGIQUE DE CONFLUENCE MTF
-    // On considère qu'il y a confluence si le TF actuel et au moins un TF supérieur sont alignés
+    // Logique de Confluence
     let isConfluent = false;
     let conflictDetected = false;
     
-    // Est-ce que le TF actuel est haussier ?
-    const isCurrentUp = trends.current === 'up';
-
     if (isCurrentUp) {
-        // On veut acheter. Est-ce que la 15m ou la 4h est baissière ?
         if (trends.m15 === 'down' || trends.h4 === 'down') conflictDetected = true;
         if (trends.m15 === 'up' && trends.h4 === 'up') isConfluent = true;
     } else {
-        // On veut vendre. Est-ce que la 15m ou la 4h est haussière ?
         if (trends.m15 === 'up' || trends.h4 === 'up') conflictDetected = true;
         if (trends.m15 === 'down' && trends.h4 === 'down') isConfluent = true;
     }
 
-    updateTradeStatus(isCurrentUp, currentPrice, isConfluent, conflictDetected);
+    updateTradeStatus(currentPrice, isConfluent, conflictDetected);
     renderPanel(isCurrentUp, longEntry, longSL, longTP, shortEntry, shortSL, shortTP);
-    drawLines(isCurrentUp);
+    drawLines(activeSetup);
 
   } catch(e) { console.error("Erreur:", e); }
 }
 
-function updateTradeStatus(isTrendUp, price, isConfluent, conflict) {
+function updateTradeStatus(price, isConfluent, conflict) {
     const statusDiv = $('tradeStatus');
-    const setup = isTrendUp ? currentSetup.long : currentSetup.short;
+    const setup = activeSetup;
     const tolerance = price * 0.0002; 
+    const isBuy = setup.type === 'buy';
     
     statusDiv.className = ''; 
 
-    // Priorité 1 : Le prix a touché le SL
-    if ((isTrendUp && price < setup.sl) || (!isTrendUp && price > setup.sl)) {
-        statusDiv.textContent = "🛑 Setup invalidé (SL touché).";
+    // 1. Vérification Invalidation
+    if ((isBuy && price < setup.sl) || (!isBuy && price > setup.sl)) {
+        statusDiv.textContent = `🛑 Setup ${isBuy ? 'ACHAT' : 'VENTE'} invalidé (SL touché).`;
         statusDiv.classList.add('status-invalid');
         return;
     }
     
-    // Priorité 2 : Le prix a touché le TP
-    if ((isTrendUp && price >= setup.tp) || (!isTrendUp && price <= setup.tp)) {
-        statusDiv.textContent = "🎯 Objectif TP atteint !";
+    // 2. Vérification TP
+    if ((isBuy && price >= setup.tp) || (!isBuy && price <= setup.tp)) {
+        statusDiv.textContent = `🎯 Setup ${isBuy ? 'ACHAT' : 'VENTE'} : Objectif TP atteint !`;
         statusDiv.classList.add('status-progress');
         return;
     }
 
-    // Priorité 3 : On est dans la zone d'entrée
+    // 3. Vérification Zone d'Entrée
     if (price >= setup.entry - tolerance && price <= setup.entry + tolerance) {
         if (conflict) {
-            statusDiv.textContent = "⚠️ Entrée atteinte mais CONFLIT MTF";
-            statusDiv.classList.add('status-wait'); // Orange pour avertir
+            statusDiv.textContent = `⚠️ Entrée ${isBuy ? 'ACHAT' : 'VENTE'} atteinte, mais CONFLIT MTF`;
+            statusDiv.classList.add('status-wait');
         } else if (isConfluent) {
-            statusDiv.textContent = "🔥 CONFLUENCE PARFAITE ! ENTRÉE !";
+            statusDiv.textContent = `🔥 CONFLUENCE ${isBuy ? 'ACHAT' : 'VENTE'} !`;
             statusDiv.classList.add('status-confluence');
         } else {
-            statusDiv.textContent = "⚡ PRIX DANS LA ZONE D'ENTRÉE !";
+            statusDiv.textContent = `⚡ PRIX DANS LA ZONE D'ENTRÉE ${isBuy ? 'ACHAT' : 'VENTE'} !`;
             statusDiv.classList.add('status-entry');
         }
         return;
     }
 
-    // Priorité 4 : Le prix n'est pas encore arrivé
-    if ((isTrendUp && price > setup.entry) || (!isTrendUp && price < setup.entry)) {
-        statusDiv.textContent = `⏳ Attendre le repli vers ${setup.entry.toFixed(2)}`;
+    // 4. Attente du repli
+    if ((isBuy && price > setup.entry) || (!isBuy && price < setup.entry)) {
+        statusDiv.textContent = `⏳ Attendre le repli vers ${setup.entry.toFixed(2)} (${isBuy ? 'Achat' : 'Vente'})`;
         statusDiv.classList.add('status-wait');
     } else {
-        statusDiv.textContent = "🚀 Trade en cours vers le TP.";
+        statusDiv.textContent = `🚀 Trade ${isBuy ? 'ACHAT' : 'VENTE'} en cours...`;
         statusDiv.classList.add('status-progress');
     }
 }
 
-function renderPanel(isTrendUp, lE, lS, lT, sE, sS, sT) {
+function renderPanel(isCurrentUp, lE, lS, lT, sE, sS, sT) {
   const dec = getDecimals(currentSymbol);
   const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
   
-  // On grise le setup qui va à l'encontre de la 4h (le filtre ultime)
-  const longClass = (trends.h4 === 'down') ? 'buy counter-trend' : 'buy';
-  const shortClass = (trends.h4 === 'up') ? 'sell counter-trend' : 'sell';
+  // Le setup actif est mis en évidence, l'autre est grisé
+  const longClass = isCurrentUp ? 'buy' : 'buy inactive';
+  const shortClass = !isCurrentUp ? 'sell' : 'sell inactive';
 
   let html = `
     <div style="padding:10px 15px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
@@ -393,7 +381,7 @@ function renderPanel(isTrendUp, lE, lS, lT, sE, sS, sT) {
       <div style="text-align:right; font-size:10px; color:var(--muted);">R:R Fixé à 2.0</div>
     </div>
     <div class="setup ${longClass}">
-      <div class="setup-title"><span>🟢 ACHAT (50% OB)</span>${isTrendUp ? '<span style="font-size:10px;background:var(--up);color:#000;padding:2px 6px;border-radius:10px;">FAVORI</span>' : ''}</div>
+      <div class="setup-title"><span>🟢 ACHAT (50% OB)</span>${isCurrentUp ? '<span style="font-size:10px;background:var(--up);color:#000;padding:2px 6px;border-radius:10px;">ACTIF</span>' : ''}</div>
       <div class="trade-grid">
         <div class="cell precision"><small>Entrée</small><b>${fmt(lE)}</b></div>
         <div class="cell"><small>Stop-Loss</small><b>${fmt(lS)}</b></div>
@@ -401,7 +389,7 @@ function renderPanel(isTrendUp, lE, lS, lT, sE, sS, sT) {
       </div>
     </div>
     <div class="setup ${shortClass}">
-      <div class="setup-title"><span>🔴 VENTE (50% OB)</span>${!isTrendUp ? '<span style="font-size:10px;background:var(--down);color:#fff;padding:2px 6px;border-radius:10px;">FAVORI</span>' : ''}</div>
+      <div class="setup-title"><span>🔴 VENTE (50% OB)</span>${!isCurrentUp ? '<span style="font-size:10px;background:var(--down);color:#fff;padding:2px 6px;border-radius:10px;">ACTIF</span>' : ''}</div>
       <div class="trade-grid">
         <div class="cell precision"><small>Entrée</small><b>${fmt(sE)}</b></div>
         <div class="cell"><small>Stop-Loss</small><b>${fmt(sS)}</b></div>
@@ -412,14 +400,16 @@ function renderPanel(isTrendUp, lE, lS, lT, sE, sS, sT) {
   $('analysisContent').innerHTML = html;
 }
 
-function drawLines(isTrendUp) {
+function drawLines(setup) {
   priceLines.forEach(line => candleSeries.removePriceLine(line));
   priceLines = [];
-  const setup = isTrendUp ? currentSetup.long : currentSetup.short;
+  
   const addLine = (price, color, title, style) => {
     const line = candleSeries.createPriceLine({ price, color, lineWidth: 2, lineStyle: style, axisLabelVisible: true, title });
     priceLines.push(line);
   };
+  
+  // On ne trace que le setup actif
   addLine(setup.entry, '#2962ff', 'Entrée', LightweightCharts.LineStyle.Solid);
   addLine(setup.sl, '#ef5350', 'SL', LightweightCharts.LineStyle.Dashed);
   addLine(setup.tp, '#26a69a', 'TP (RR2)', LightweightCharts.LineStyle.Dashed);
@@ -442,17 +432,13 @@ function triggerAlert(msg, color) {
 
 window.addEventListener('load', () => {
   initChart();
-  
-  // Premier chargement
   setTimeout(() => {
     fetchMainData();
-    fetchHTF(); // Charge les tendances 15m et 4h
+    fetchHTF();
     
-    // Le graphique principal se met à jour toutes les 5 secondes
     if (updateInterval) clearInterval(updateInterval);
     updateInterval = setInterval(fetchMainData, 5000); 
 
-    // Les tendances HTF se mettent à jour toutes les 60 secondes (elles changent lentement)
     if (htfInterval) clearInterval(htfInterval);
     htfInterval = setInterval(fetchHTF, 60000);
   }, 300);
