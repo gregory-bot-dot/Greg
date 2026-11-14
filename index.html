@@ -78,7 +78,7 @@
   .canvas-inner{position:relative; line-height:0; display:none;}
   canvas{display:block; max-width:100%; height:auto;}
   
-  /* Overlay : autorise le scroll par défaut, le bloque seulement en mode calibration */
+  /* Overlay */
   #overlay { position:absolute; inset:0; width:100%; height:100%; touch-action: pan-y; } 
   #overlay.calibrating { touch-action: none; cursor: crosshair; }
 
@@ -124,19 +124,22 @@
   .spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg)}}
 
-  /* CALIBRATION FLOATING INPUT */
-  #calibInputBox{
-    display:none; position:absolute; background:#1a1f2c; border:1px solid var(--acc);
-    padding:10px; border-radius:8px; z-index:100; box-shadow:0 4px 20px rgba(0,0,0,0.8);
-    width: 200px; transform: translate(-50%, -50%);
+  /* BARRE DE CALIBRATION FIXE EN BAS */
+  #calibInputBox {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--panel); border-top: 2px solid var(--acc);
+    padding: 15px; z-index: 1000; box-shadow: 0 -4px 20px rgba(0,0,0,0.8);
   }
-  #calibPriceInput{
-    width:100%; background:#0b0e14; border:1px solid var(--line2); color:#fff;
-    padding:8px; border-radius:4px; font-size:14px; font-family:monospace; text-align:center; margin-bottom:8px;
+  #calibPriceInput {
+    width: 100%; background: #0b0e14; border: 1px solid var(--line2); color: #fff;
+    padding: 12px; border-radius: 6px; font-size: 18px; font-family: monospace;
+    text-align: center; margin-bottom: 12px; box-sizing: border-box;
   }
-  .calib-btns{display:flex; gap:6px;}
-  .calib-btns button{ flex:1; padding:8px; border:none; border-radius:4px; font-weight:bold; font-size:12px; cursor:pointer;}
-  .calib-ok{background:var(--acc); color:#fff;} .calib-cancel{background:var(--line2); color:var(--txt);}
+  .calib-btns { display: flex; gap: 10px; }
+  .calib-btns button { flex: 1; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 14px; border: none; cursor: pointer;}
+  .calib-ok { background: var(--acc); color: #fff; }
+  .calib-cancel { background: var(--line2); color: var(--txt); }
+
   .hidden{display:none !important;}
 </style>
 </head>
@@ -162,7 +165,7 @@
 </header>
 
 <div class="app">
-  <!-- PANNEAU GAUCHE (OPTIONS AVANCÉES) -->
+  <!-- PANNEAU GAUCHE -->
   <aside class="panel">
     <div class="sect">
       <h2>Options d'affichage</h2>
@@ -178,8 +181,13 @@
     </div>
   </aside>
 
-  <!-- PANNEAU CENTRAL (CHART & TOOLBAR) -->
+  <!-- PANNEAU CENTRAL -->
   <main class="panel center">
+    <!-- Bannière d'instruction de calibration -->
+    <div id="calibBanner" style="display:none; background:var(--acc); color:white; padding:10px; text-align:center; font-weight:bold; font-size:12px;">
+      👆 Touchez un prix sur l'axe de droite
+    </div>
+
     <div class="chart-wrap" id="chartWrap">
       <div class="empty-chart" id="emptyChart">
         Chargez un screenshot pour<br>lancer l'analyse SMC.
@@ -187,19 +195,10 @@
       <div class="canvas-inner" id="canvasInner">
         <canvas id="cv"></canvas>
         <canvas id="overlay"></canvas>
-        <!-- Boite de saisie flottante -->
-        <div id="calibInputBox">
-          <div style="font-size:10px; color:var(--muted); margin-bottom:4px; text-align:center;">Entrez le prix exact</div>
-          <input type="number" id="calibPriceInput" step="any" inputmode="decimal" placeholder="ex: 3884.5">
-          <div class="calib-btns">
-            <button class="calib-ok" onclick="submitCalibPrice()">OK</button>
-            <button class="calib-cancel" onclick="cancelCalibPrice()">X</button>
-          </div>
-        </div>
       </div>
     </div>
     
-    <!-- Barre d'outils TOUJOURS visible -->
+    <!-- Barre d'outils -->
     <div class="chart-toolbar">
       <label class="btn-label primary" for="file">📸 Image</label>
       <input type="file" id="file" accept="image/*">
@@ -209,21 +208,27 @@
       
       <div class="status" id="statusTxt">Prêt</div>
     </div>
-    
-    <div id="calibStatus" style="font-size:10.5px; color:var(--dim); padding:0 12px 8px; text-align:center;"></div>
   </main>
 
-  <!-- PANNEAU DROIT (RESULTATS) -->
+  <!-- PANNEAU DROIT -->
   <aside class="panel">
     <div class="tabs">
       <button class="tab active" data-tab="signal">Setup</button>
       <button class="tab" data-tab="smc">SMC</button>
-      <button class="tab" data-tab="report">Rapport</button>
     </div>
     <div class="results" id="tabSignal"><div class="empty-chart">En attente d'image...</div></div>
     <div class="results hidden" id="tabSmc"><div class="empty-chart">En attente d'image...</div></div>
-    <div class="results hidden" id="tabReport"><div class="empty-chart">En attente d'image...</div></div>
   </aside>
+</div>
+
+<!-- MODALE FIXE POUR LA CALIBRATION -->
+<div id="calibInputBox">
+  <div style="font-size:11px; color:var(--muted); margin-bottom:6px; text-align:center; text-transform:uppercase; font-weight:bold;">Entrez le prix exact</div>
+  <input type="number" id="calibPriceInput" step="any" inputmode="decimal" placeholder="ex: 3884.5">
+  <div class="calib-btns">
+    <button class="calib-ok" onclick="submitCalibPrice()">Valider le prix</button>
+    <button class="calib-cancel" onclick="cancelCalibPrice()">Annuler</button>
+  </div>
 </div>
 
 <script>
@@ -237,9 +242,8 @@ const TV_RED   = [[239,83,80],[242,54,69],[244,67,54],[255,82,82]];
 
 const S = {
   cv:$('cv'), ov:$('overlay'), ctx:null, octx:null,
-  loaded:false, imageDataURL:null, candles:[], swings:[],
-  analysis:null, smc:null, setups:null,
-  priceCal:null, layout:null, calibMode:false, calibPoints:[]
+  loaded:false, candles:[], swings:[],
+  setups:null, priceCal:null, calibMode:false, calibPoints:[]
 };
 S.ctx = S.cv.getContext('2d', {willReadFrequently:true, alpha: false});
 S.octx = S.ov.getContext('2d');
@@ -270,14 +274,14 @@ $('file').addEventListener('change', async e => {
   
   img.onload = () => {
     try {
-      const MAX = 1200; // Optimisé mobile
+      const MAX = 1200; 
       const k = Math.min(1, MAX/Math.max(img.naturalWidth, img.naturalHeight));
       const w = Math.round(img.naturalWidth*k), h = Math.round(img.naturalHeight*k);
       
       S.cv.width = w; S.cv.height = h;
       S.ov.width = w; S.ov.height = h;
       
-      S.ctx.fillStyle = "#000000"; // Fond noir pour éviter les transparences
+      S.ctx.fillStyle = "#000000"; 
       S.ctx.fillRect(0, 0, w, h);
       S.ctx.drawImage(img, 0, 0, w, h);
       
@@ -286,7 +290,6 @@ $('file').addEventListener('change', async e => {
       $('emptyChart').style.display = 'none';
       $('canvasInner').style.display = 'block';
       $('btnClear').disabled = false; $('btnClick').disabled = false;
-      $('calibStatus').innerHTML = "<b>Étape 2 :</b> Cliquez sur 🎯 Calibrer pour définir les prix exacts.";
       
       runAnalysis();
     } catch(err) {
@@ -361,8 +364,7 @@ function runAnalysis(){
       if(bodyTop < 0){ bodyTop = yTop; bodyBot = yBot; }
 
       candles.push({
-        x:(x1+x2)/2, x1, x2, high:yTop, low:yBot, bodyTop, bodyBot, mid:(yTop+yBot)/2,
-        bodySize:Math.abs(bodyBot - bodyTop), range:yBot - yTop
+        x:(x1+x2)/2, x1, x2, high:yTop, low:yBot, bodyTop, bodyBot, mid:(yTop+yBot)/2
       });
     }
 
@@ -463,15 +465,18 @@ function drawOverlay(){
     if(s.tp1Y) drawLine(s.tp1Y, '#26a69a', 'TP1');
   }
 
+  // Dessine les repères de calibration
   if(S.calibMode){
     S.calibPoints.forEach((p, i) => {
       o.fillStyle = '#2962ff';
-      o.beginPath(); o.arc(W - 20, p.y, 5, 0, Math.PI*2); o.fill();
+      o.beginPath(); o.arc(W - 25, p.y, 6, 0, Math.PI*2); o.fill();
+      o.fillStyle = '#fff'; o.font = 'bold 10px sans-serif';
+      o.fillText(i+1, W - 28, p.y + 4);
     });
   }
 }
 
-/* CALIBRATION */
+/* LOGIQUE CALIBRATION (Robuste) */
 $('btnClick').addEventListener('click', () => {
   if(!S.loaded) return;
   if(S.calibMode){
@@ -480,9 +485,14 @@ $('btnClick').addEventListener('click', () => {
     S.calibMode = true; S.calibPoints = [];
     $('btnClick').classList.add('active');
     $('btnClick').textContent = 'Annuler';
-    $('ov').classList.add('calibrating'); // Active le blocage du scroll tactile
-    $('calibStatus').innerHTML = '<span style="color:var(--acc)">Touchez un prix en HAUT à droite.</span>';
+    $('ov').classList.add('calibrating'); 
+    
+    // Affiche la bannière d'instruction
+    $('calibBanner').style.display = 'block';
+    $('calibBanner').innerHTML = '👆 Touchez un prix en HAUT sur l\'axe de droite';
+    
     $('calibInputBox').style.display = 'none';
+    drawOverlay();
   }
 });
 
@@ -491,30 +501,36 @@ function cancelClickCalibration(){
   $('btnClick').classList.remove('active');
   $('btnClick').textContent = '🎯 Calibrer';
   $('ov').classList.remove('calibrating');
+  $('calibBanner').style.display = 'none';
   $('calibInputBox').style.display = 'none';
   drawOverlay();
 }
 
-// Gestion unifiée du tactile et de la souris
-$('ov').addEventListener('pointerdown', e => {
+// Fonction unifiée pour gérer le clic/toucher sur le graphique
+function handleChartTouch(clientY) {
   if(!S.calibMode) return;
+  
   const r = S.ov.getBoundingClientRect();
-  const y = (e.clientY - r.top) * (S.ov.height / r.height);
+  const y = (clientY - r.top) * (S.ov.height / r.height);
   
-  const box = $('calibInputBox');
-  const rect = $('chartWrap').getBoundingClientRect();
-  
-  let left = e.clientX - rect.left;
-  let top = e.clientY - rect.top;
-  
-  box.style.left = Math.max(110, Math.min(left, rect.width - 110)) + 'px';
-  box.style.top = Math.max(80, top) + 'px';
-  box.style.display = 'block';
-  
+  $('calibInputBox').style.display = 'block';
   $('calibPriceInput').value = '';
-  setTimeout(() => $('calibPriceInput').focus(), 100);
+  $('calibInputBox').dataset.clickY = y;
   
-  box.dataset.clickY = y;
+  setTimeout(() => $('calibPriceInput').focus(), 100);
+}
+
+// Écouteurs d'événements pour mobile et PC
+$('ov').addEventListener('touchstart', e => {
+  if(!S.calibMode) return;
+  e.preventDefault(); // Bloque le scroll pour être sûr
+  if(e.touches.length > 0) handleChartTouch(e.touches[0].clientY);
+}, {passive: false});
+
+$('ov').addEventListener('mousedown', e => {
+  if(!S.calibMode) return;
+  e.preventDefault();
+  handleChartTouch(e.clientY);
 });
 
 window.submitCalibPrice = function(){
@@ -526,7 +542,8 @@ window.submitCalibPrice = function(){
   $('calibInputBox').style.display = 'none';
   
   if(S.calibPoints.length === 1){
-    $('calibStatus').innerHTML = '<span style="color:var(--acc)">1er prix OK. Touchez un prix en BAS à droite.</span>';
+    $('calibBanner').innerHTML = '👆 1er prix OK. Touchez un prix en BAS sur l\'axe.';
+    drawOverlay();
   } else {
     const [p1, p2] = S.calibPoints;
     S.priceCal = {
@@ -534,13 +551,14 @@ window.submitCalibPrice = function(){
       p2: { y: p2.y, price: p2.price },
       dec: Math.abs(p1.price) > 100 ? 3 : 5
     };
-    $('calibStatus').innerHTML = `<span style="color:var(--up)">✓ Calibré : ${p1.price} & ${p2.price}</span>`;
     cancelClickCalibration();
     runAnalysis(); 
   }
 };
 
-window.cancelCalibPrice = function(){ $('calibInputBox').style.display = 'none'; };
+window.cancelCalibPrice = function(){ 
+  $('calibInputBox').style.display = 'none'; 
+};
 
 $('btnClear').addEventListener('click', () => {
   S.loaded = false; S.priceCal = null;
@@ -549,7 +567,6 @@ $('btnClear').addEventListener('click', () => {
   $('btnClear').disabled = true; $('btnClick').disabled = true;
   cancelClickCalibration();
   $('tabSignal').innerHTML = '<div class="empty-chart">Chargez une image.</div>';
-  $('calibStatus').innerHTML = '';
   setStatus('Prêt');
 });
 
@@ -559,8 +576,8 @@ document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
-    ['signal','smc','report'].forEach(k => {
-      $('tab' + (k === 'smc' ? 'Smc' : k === 'report' ? 'Report' : 'Signal')).classList.toggle('hidden', k !== tab.dataset.tab);
+    ['signal','smc'].forEach(k => {
+      $('tab' + (k === 'smc' ? 'Smc' : 'Signal')).classList.toggle('hidden', k !== tab.dataset.tab);
     });
   });
 });
