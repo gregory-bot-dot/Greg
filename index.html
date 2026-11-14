@@ -3,297 +3,194 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision SMC — Analyse TradingView</title>
+<title>ChartVision SMC</title>
 <style>
   :root{
     --bg:#0b0e14;--panel:#131722;--panel2:#1a1f2c;--panel3:#222836;
     --line:#232c3d;--line2:#2f3a52;
     --txt:#d1d4dc;--muted:#8b94a8;--dim:#5d6577;
-    --acc:#2962ff;--up:#26a69a;--down:#ef5350;--warn:#ff9800;--info:#ab47bc;
+    --acc:#2962ff;--up:#26a69a;--down:#ef5350;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
   html,body{height:100%; margin:0; padding:0;}
   body{
     background:var(--bg); color:var(--txt); 
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-    font-size:13px; -webkit-font-smoothing:antialiased; 
-    overflow-x: hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:13px; -webkit-font-smoothing:antialiased; overflow-x: hidden;
   }
-  ::-webkit-scrollbar{width:6px;height:6px}
-  ::-webkit-scrollbar-thumb{background:#2f3a52;border-radius:3px}
   
   /* HEADER */
-  header{
-    display:flex; flex-direction: column; gap:8px;
-    padding:10px 12px; border-bottom:1px solid var(--line); 
-    background:#0e1219; position:relative; z-index:10;
-  }
-  .hdr-top{display:flex; align-items:center; justify-content:space-between;}
-  .logo-title{display:flex; align-items:center; gap:8px;}
-  .logo{width:24px;height:24px;border-radius:5px;background:linear-gradient(135deg,#2962ff,#26a69a);position:relative}
-  .logo::after{content:"";position:absolute;inset:4px;border-radius:2px;background:#0b0e14}
-  header h1{font-size:14px;margin:0;font-weight:700;}
+  header{padding:10px; background:#0e1219; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;}
+  header h1{font-size:15px;margin:0;font-weight:700;}
   header h1 span{color:var(--acc)}
   
-  .hdr-fields{display:flex; gap:6px;}
-  .hdr-fields select,.hdr-fields input{
-    background:var(--panel2); border:1px solid var(--line); color:var(--txt);
-    border-radius:5px; padding:6px 8px; font-size:12px; font-family:inherit; outline:none;
-  }
-  .hdr-fields input{flex:1;}
-  .hdr-fields select{width:90px;}
-
   /* APP LAYOUT */
-  .app{display:grid; grid-template-columns:280px 1fr 460px; height:calc(100vh - 54px);}
-  @media(max-width:1024px){
-    .app{display:flex; flex-direction:column; height:auto; min-height:calc(100vh - 54px);}
-    .panel{border:none; border-bottom:1px solid var(--line);}
-    .panel.center{order:-1;}
-    /* Sur mobile, le graphique prend max 45% de la hauteur de l'écran */
-    .chart-wrap { max-height: 45vh; } 
-  }
-
-  .panel{background:var(--panel); display:flex; flex-direction:column; overflow-y:auto;}
-  .panel.center{background:#070a10; border-right:1px solid var(--line); border-left:1px solid var(--line);}
+  .app{display:flex; flex-direction:column; min-height:calc(100vh - 45px);}
+  @media(min-width:1024px){ .app{flex-direction:row; height:calc(100vh - 45px);} }
   
-  .sect{padding:12px; border-bottom:1px solid var(--line);}
-  .sect h2{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:0 0 8px;font-weight:700;}
-  
-  /* BUTTONS */
-  button.btn, .btn-label {
-    border:1px solid var(--line); border-radius:6px; padding:8px 12px;
-    font-weight:600; font-size:11.5px; cursor:pointer; background:var(--panel2); color:var(--txt);
-    display:inline-flex; align-items:center; justify-content:center; gap:6px; text-decoration:none;
-  }
-  button.btn:active, .btn-label:active{background:var(--panel3)}
-  button.btn:disabled{opacity:.4; pointer-events:none;}
-  button.btn.primary, .btn-label.primary{background:var(--acc); color:#fff; border-color:var(--acc)}
-  button.btn.ghost{background:transparent}
-  button.btn.active{background:var(--up); color:#000; border-color:var(--up)}
-
-  input[type=file]{display:none}
-
-  /* CHART ZONE */
-  .chart-wrap{position:relative; width:100%; min-height: 200px; display:flex; align-items:center; justify-content:center; background:#05080c; overflow:auto;}
-  .canvas-inner{position:relative; line-height:0; display:none;}
+  /* ZONE GRAPHIQUE */
+  .chart-section{background:#05080c; display:flex; flex-direction:column; flex:1;}
+  .chart-wrap{position:relative; width:100%; max-height:40vh; display:flex; align-items:center; justify-content:center; overflow:auto;}
   canvas{display:block; max-width:100%; height:auto;}
   
-  /* Overlay */
-  #overlay { position:absolute; inset:0; width:100%; height:100%; touch-action: pan-y; } 
-  #overlay.calibrating { touch-action: none; cursor: crosshair; }
-
-  .empty-chart{color:var(--dim); text-align:center; padding:40px 15px; font-size:12px;}
+  /* OUTILS (Boutons sous le graphique) */
+  .toolbar{padding:10px; background:var(--panel); border-top:1px solid var(--line); border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
   
-  .chart-toolbar{
-    display:flex; align-items:center; gap:6px; flex-wrap:wrap;
-    padding:8px; background:var(--panel); border-top:1px solid var(--line);
-    position:sticky; bottom:0; z-index:10;
+  .btn-label, button.btn {
+    border:none; border-radius:6px; padding:8px 12px; font-weight:600; font-size:12px; 
+    cursor:pointer; background:var(--panel2); color:var(--txt); text-align:center;
   }
-  .chart-toolbar .status{margin-left:auto; color:var(--dim); font-size:11px; font-weight:600;}
-
-  /* TABS */
-  .tabs{display:flex; background:var(--panel); position:sticky; top:0; z-index:5; border-bottom:1px solid var(--line);}
-  .tab{
-    flex:1; padding:12px 4px; background:transparent; border:none; color:var(--muted);
-    font-size:10.5px; font-weight:700; text-transform:uppercase; cursor:pointer;
-    border-bottom:2px solid transparent;
+  .btn-label{background:var(--acc); color:#fff;}
+  .btn-label:active, button.btn:active{opacity:0.8;}
+  
+  /* SAISIE DES PRIX */
+  .price-inputs{display:flex; gap:8px; padding:10px; background:var(--panel2); align-items:center; justify-content:center;}
+  .price-inputs label{font-size:11px; color:var(--muted);}
+  .price-inputs input{
+    width:80px; background:#0b0e14; border:1px solid var(--line2); color:#fff;
+    padding:8px; border-radius:4px; font-size:13px; font-family:monospace; text-align:center;
   }
+  .price-inputs input:focus{outline:none; border-color:var(--acc);}
+  
+  /* RESULTATS (Onglets) */
+  .results-section{flex:1; background:var(--panel); display:flex; flex-direction:column;}
+  .tabs{display:flex; border-bottom:1px solid var(--line);}
+  .tab{flex:1; padding:12px; background:none; border:none; color:var(--muted); font-size:12px; font-weight:bold; cursor:pointer; border-bottom:2px solid transparent;}
   .tab.active{color:var(--acc); border-bottom-color:var(--acc);}
   
-  /* RESULTS */
-  .results{padding:12px; font-size:12.5px; line-height:1.5;}
-  .kpi-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px;}
-  .kpi{background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:8px 10px; border-left:3px solid var(--dim);}
-  .kpi.up{border-left-color:var(--up)} .kpi.down{border-left-color:var(--down)} .kpi.info{border-left-color:var(--acc)}
-  .kpi small{display:block; color:var(--dim); font-size:9px; text-transform:uppercase; margin-bottom:2px;}
-  .kpi b{display:block; font-size:14px;}
+  .content{padding:15px; overflow-y:auto; flex:1;}
+  .content > div{display:none;}
+  .content > div.active{display:block;}
   
-  .setup{border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; background:var(--panel2);}
+  /* CARTES */
+  .kpi-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:15px;}
+  .kpi{background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:10px; border-left:3px solid var(--dim);}
+  .kpi.info{border-left-color:var(--acc)} .kpi.neu{border-left-color:var(--warn)}
+  .kpi small{display:block; color:var(--dim); font-size:10px; text-transform:uppercase;}
+  .kpi b{display:block; font-size:16px; margin-top:4px;}
+  
+  .setup{border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; background:var(--panel2);}
   .setup.buy{border-color:rgba(38,166,154,.4); background:rgba(38,166,154,.05);}
   .setup.sell{border-color:rgba(239,83,80,.4); background:rgba(239,83,80,.05);}
-  .setup-head{display:flex; justify-content:space-between; margin-bottom:8px; font-weight:700; font-size:12px;}
+  .setup-head{font-weight:bold; margin-bottom:10px;}
   .setup.buy .setup-head{color:var(--up)} .setup.sell .setup-head{color:var(--down)}
+  .trade-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;}
+  .trade-cell{background:rgba(0,0,0,.2); border-radius:4px; padding:8px; border:1px solid var(--line); text-align:center;}
+  .trade-cell small{display:block; font-size:10px; color:var(--dim); margin-bottom:4px;}
+  .trade-cell b{font-family:monospace; font-size:13px;}
   
-  .trade-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;}
-  .trade-cell{background:rgba(0,0,0,.2); border-radius:4px; padding:6px 8px; border:1px solid var(--line);}
-  .trade-cell small{display:block; font-size:9px; color:var(--dim);}
-  .trade-cell b{font-family:ui-monospace,monospace; font-size:12px; display:block;}
-  
-  .warnbox{background:rgba(255,152,0,.1); border:1px solid var(--warn); color:var(--warn); padding:10px; border-radius:6px; font-size:11px; margin-top:10px;}
-
-  .spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
-  @keyframes spin{to{transform:rotate(360deg)}}
-
-  /* BARRE DE CALIBRATION FIXE EN BAS */
-  #calibInputBox {
-    display: none; position: fixed; bottom: 0; left: 0; right: 0;
-    background: var(--panel); border-top: 2px solid var(--acc);
-    padding: 15px; z-index: 1000; box-shadow: 0 -4px 20px rgba(0,0,0,0.8);
-  }
-  #calibPriceInput {
-    width: 100%; background: #0b0e14; border: 1px solid var(--line2); color: #fff;
-    padding: 12px; border-radius: 6px; font-size: 18px; font-family: monospace;
-    text-align: center; margin-bottom: 12px; box-sizing: border-box;
-  }
-  .calib-btns { display: flex; gap: 10px; }
-  .calib-btns button { flex: 1; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 14px; border: none; cursor: pointer;}
-  .calib-ok { background: var(--acc); color: #fff; }
-  .calib-cancel { background: var(--line2); color: var(--txt); }
-
-  .hidden{display:none !important;}
+  .warnbox{background:rgba(255,152,0,.1); border:1px solid var(--warn); color:var(--warn); padding:10px; border-radius:6px; font-size:12px; margin:10px 0;}
+  input[type=file]{display:none;}
 </style>
 </head>
 <body>
 
 <header>
-  <div class="hdr-top">
-    <div class="logo-title">
-      <div class="logo"></div>
-      <h1>Chart<span>Vision</span> SMC</h1>
-    </div>
-  </div>
-  <div class="hdr-fields">
-    <select id="assetType">
-      <option value="forex">💱 Forex</option>
-      <option value="crypto">₿ Crypto</option>
-      <option value="stocks">📈 Action</option>
-      <option value="indices">📊 Indice</option>
-    </select>
-    <input type="text" id="symbol" placeholder="XAUUSD" maxlength="15">
-    <input type="text" id="timeframe" placeholder="1m" style="width:50px; flex:none;" maxlength="4">
-  </div>
+  <h1>Chart<span>Vision</span> SMC</h1>
 </header>
 
 <div class="app">
-  <!-- PANNEAU GAUCHE -->
-  <aside class="panel">
-    <div class="sect">
-      <h2>Options d'affichage</h2>
-      <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px;">
-        <input type="checkbox" id="showOB" checked> Order Blocks (OB)
-      </label>
-      <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px;">
-        <input type="checkbox" id="showFVG" checked> Fair Value Gaps (FVG)
-      </label>
-      <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px;">
-        <input type="checkbox" id="showEntry" checked> Setup d'entrée
-      </label>
-    </div>
-  </aside>
-
-  <!-- PANNEAU CENTRAL -->
-  <main class="panel center">
-    <!-- Bannière d'instruction de calibration -->
-    <div id="calibBanner" style="display:none; background:var(--acc); color:white; padding:10px; text-align:center; font-weight:bold; font-size:12px;">
-      👆 Touchez un prix sur l'axe de droite
-    </div>
-
+  <!-- ZONE CENTRALE : GRAPHIQUE -->
+  <div class="chart-section">
     <div class="chart-wrap" id="chartWrap">
-      <div class="empty-chart" id="emptyChart">
-        Chargez un screenshot pour<br>lancer l'analyse SMC.
+      <div id="emptyChart" style="color:var(--dim); text-align:center; padding:40px;">
+        Chargez une image pour<br>commencer l'analyse.
       </div>
-      <div class="canvas-inner" id="canvasInner">
+      <div id="canvasInner" style="position:relative; display:none; line-height:0;">
         <canvas id="cv"></canvas>
-        <canvas id="overlay"></canvas>
       </div>
     </div>
     
-    <!-- Barre d'outils -->
-    <div class="chart-toolbar">
-      <label class="btn-label primary" for="file">📸 Image</label>
+    <div class="toolbar">
+      <label class="btn-label" for="file">📸 Choisir Image</label>
       <input type="file" id="file" accept="image/*">
-      
-      <button class="btn primary" id="btnClick" disabled>🎯 Calibrer</button>
-      <button class="btn ghost" id="btnClear" disabled>Effacer</button>
-      
-      <div class="status" id="statusTxt">Prêt</div>
+      <div style="margin-left:auto; font-size:11px; color:var(--dim);" id="statusTxt">Prêt</div>
     </div>
-  </main>
 
-  <!-- PANNEAU DROIT -->
-  <aside class="panel">
+    <!-- Saisie manuelle des prix (Remplace la calibration) -->
+    <div class="price-inputs">
+      <label>Prix Haut :</label>
+      <input type="number" id="pTop" step="any" placeholder="ex: 3892">
+      <label style="margin-left:10px;">Prix Bas :</label>
+      <input type="number" id="pBot" step="any" placeholder="ex: 3868">
+    </div>
+  </div>
+
+  <!-- ZONE DROITE : RESULTATS -->
+  <div class="results-section">
     <div class="tabs">
-      <button class="tab active" data-tab="signal">Setup</button>
-      <button class="tab" data-tab="smc">SMC</button>
+      <button class="tab active" onclick="showTab('signal')">Setup</button>
+      <button class="tab" onclick="showTab('smc')">SMC</button>
     </div>
-    <div class="results" id="tabSignal"><div class="empty-chart">En attente d'image...</div></div>
-    <div class="results hidden" id="tabSmc"><div class="empty-chart">En attente d'image...</div></div>
-  </aside>
-</div>
-
-<!-- MODALE FIXE POUR LA CALIBRATION -->
-<div id="calibInputBox">
-  <div style="font-size:11px; color:var(--muted); margin-bottom:6px; text-align:center; text-transform:uppercase; font-weight:bold;">Entrez le prix exact</div>
-  <input type="number" id="calibPriceInput" step="any" inputmode="decimal" placeholder="ex: 3884.5">
-  <div class="calib-btns">
-    <button class="calib-ok" onclick="submitCalibPrice()">Valider le prix</button>
-    <button class="calib-cancel" onclick="cancelCalibPrice()">Annuler</button>
+    <div class="content">
+      <div id="tab-signal" class="active"><div class="warnbox">En attente d'image...</div></div>
+      <div id="tab-smc"><div class="warnbox">En attente d'image...</div></div>
+    </div>
   </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
-const ASSETS = {
-  forex:{name:'Forex',dec:3,unit:''}, crypto:{name:'Crypto',dec:2,unit:''},
-  stocks:{name:'Action',dec:2,unit:'$'}, indices:{name:'Indice',dec:1,unit:'pts'}
-};
 const TV_GREEN = [[38,166,154],[8,153,129],[76,175,80],[0,150,136]];
 const TV_RED   = [[239,83,80],[242,54,69],[244,67,54],[255,82,82]];
 
 const S = {
-  cv:$('cv'), ov:$('overlay'), ctx:null, octx:null,
-  loaded:false, candles:[], swings:[],
-  setups:null, priceCal:null, calibMode:false, calibPoints:[]
+  cv:$('cv'), ctx:null, loaded:false, candles:[],
+  priceTop:null, priceBot:null, setups:null
 };
 S.ctx = S.cv.getContext('2d', {willReadFrequently:true, alpha: false});
-S.octx = S.ov.getContext('2d');
 
-function profile(){ return ASSETS[$('assetType').value] || ASSETS.forex; }
+// Navigation Onglets (Ultra basique et fiable)
+function showTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.content > div').forEach(d => d.classList.remove('active'));
+  
+  if(id === 'signal') document.querySelectorAll('.tab')[0].classList.add('active');
+  if(id === 'smc') document.querySelectorAll('.tab')[1].classList.add('active');
+  
+  $('tab-' + id).classList.add('active');
+}
+
+// Conversion Y -> Prix
 function yToPrice(y){
-  const c = S.priceCal;
-  if(!c) return null;
-  if(Math.abs(c.p2.y - c.p1.y) < 0.5) return c.p1.price;
-  return c.p1.price + (y - c.p1.y) * (c.p2.price - c.p1.price) / (c.p2.y - c.p1.y);
+  const top = S.priceTop, bot = S.priceBot;
+  if(top === null || bot === null || !S.cv.height) return null;
+  // y=0 est en haut de l'image, y=height est en bas
+  const rel = y / S.cv.height;
+  return top + (bot - top) * rel;
 }
-function fmtPrice(p, dec){
+function fmtPrice(p){
   if(p === null || !isFinite(p)) return '—';
-  const d = dec !== undefined ? dec : (S.priceCal?.dec ?? profile().dec);
-  return p.toLocaleString('fr-FR', {minimumFractionDigits:d, maximumFractionDigits:d});
-}
-function setStatus(t, spin){
-  $('statusTxt').innerHTML = (spin ? '<span class="spin"></span>' : '') + t;
+  return p.toLocaleString('fr-FR', {minimumFractionDigits:3, maximumFractionDigits:3});
 }
 
 /* CHARGEMENT IMAGE */
 $('file').addEventListener('change', async e => {
   const file = e.target.files[0];
   if(!file) return;
-  setStatus('Lecture…', true);
+  $('statusTxt').textContent = "Chargement...";
+  
   const url = URL.createObjectURL(file);
   const img = new Image();
   
   img.onload = () => {
     try {
-      const MAX = 1200; 
+      const MAX = 1000; // Réduit pour mobile
       const k = Math.min(1, MAX/Math.max(img.naturalWidth, img.naturalHeight));
       const w = Math.round(img.naturalWidth*k), h = Math.round(img.naturalHeight*k);
       
       S.cv.width = w; S.cv.height = h;
-      S.ov.width = w; S.ov.height = h;
-      
       S.ctx.fillStyle = "#000000"; 
       S.ctx.fillRect(0, 0, w, h);
       S.ctx.drawImage(img, 0, 0, w, h);
       
-      S.loaded = true; S.priceCal = null; S.calibMode = false; S.calibPoints = [];
-      
+      S.loaded = true;
       $('emptyChart').style.display = 'none';
       $('canvasInner').style.display = 'block';
-      $('btnClear').disabled = false; $('btnClick').disabled = false;
       
       runAnalysis();
     } catch(err) {
-      alert("Erreur: " + err.message);
+      alert("Erreur de lecture.");
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -301,7 +198,7 @@ $('file').addEventListener('change', async e => {
   img.src = url;
 });
 
-/* ALGORITHME */
+/* ALGORITHME D'ANALYSE */
 function colorDist(a, b){ return Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])+Math.abs(a[2]-b[2]); }
 function classifyPixel(r, g, b, a){
   if(a < 50) return 0;
@@ -312,13 +209,13 @@ function classifyPixel(r, g, b, a){
 }
 
 function runAnalysis(){
-  if(!S.loaded) return;
-  setStatus('Analyse…', true);
+  $('statusTxt').textContent = "Analyse...";
   try{
     const W = S.cv.width, H = S.cv.height;
     const data = S.ctx.getImageData(0, 0, W, H).data;
     const cls = new Uint8Array(W * H);
     
+    // Ignorer 5% en haut et 15% en bas (pour éviter l'UI TradingView)
     const yStart = Math.floor(H * 0.05);
     const yEnd = Math.floor(H * 0.85);
 
@@ -354,233 +251,123 @@ function runAnalysis(){
       }
       if(yBot < 0 || yBot - yTop < 2) continue;
 
-      const bodyTh = Math.max(2, Math.round(width*0.4));
-      let bodyTop = -1, bodyBot = -1;
-      for(let yy = yTop; yy <= yBot; yy++){
-        let cnt = 0;
-        for(let xx = x1; xx <= x2; xx++) if(cls[yy*W+xx]) cnt++;
-        if(cnt >= bodyTh){ if(bodyTop<0) bodyTop=yy; bodyBot=yy; }
-      }
-      if(bodyTop < 0){ bodyTop = yTop; bodyBot = yBot; }
-
       candles.push({
-        x:(x1+x2)/2, x1, x2, high:yTop, low:yBot, bodyTop, bodyBot, mid:(yTop+yBot)/2
+        x:(x1+x2)/2, x1, x2, high:yTop, low:yBot, mid:(yTop+yBot)/2
       });
     }
 
     if(candles.length < 5){
-      setStatus('Échec');
-      $('tabSignal').innerHTML = '<div class="warnbox">Pas assez de bougies visibles.</div>';
+      $('statusTxt').textContent = "Échec";
+      $('tab-signal').innerHTML = '<div class="warnbox">Pas assez de bougies détectées.</div>';
       return;
     }
 
-    const swings = [];
-    for(let i = 2; i < candles.length - 2; i++){
-      if(candles[i].high < candles[i-1].high && candles[i].high < candles[i+1].high) swings.push({i, x:candles[i].x, y:candles[i].high, type:'H'});
-      if(candles[i].low > candles[i-1].low && candles[i].low > candles[i+1].low) swings.push({i, x:candles[i].x, y:candles[i].low, type:'L'});
-    }
-
     S.candles = candles;
-    const lastCandle = candles[candles.length - 1];
-    const lastSwingHigh = swings.filter(s => s.type === 'H').slice(-1)[0];
-    const lastSwingLow = swings.filter(s => s.type === 'L').slice(-1)[0];
-    const isUptrend = lastSwingHigh && lastSwingLow && lastSwingHigh.i > lastSwingLow.i;
-
-    S.setups = {
-      bias: isUptrend ? 'up' : 'down', 
-      currentPrice: yToPrice(lastCandle.mid), 
-      long: { 
-        favored: isUptrend, 
-        entry: isUptrend && lastSwingLow ? yToPrice(lastSwingLow.y + 5) : null, 
-        sl: isUptrend && lastSwingLow ? yToPrice(lastSwingLow.y + 15) : null, 
-        tp1: isUptrend && lastSwingHigh ? yToPrice(lastSwingHigh.y - 10) : null,
-        entryY: lastSwingLow ? lastSwingLow.y + 5 : lastCandle.mid,
-        slY: lastSwingLow ? lastSwingLow.y + 15 : lastCandle.mid,
-        tp1Y: lastSwingHigh ? lastSwingHigh.y - 10 : lastCandle.mid
-      },
-      short: { 
-        favored: !isUptrend, 
-        entry: !isUptrend && lastSwingHigh ? yToPrice(lastSwingHigh.y - 5) : null, 
-        sl: !isUptrend && lastSwingHigh ? yToPrice(lastSwingHigh.y - 15) : null, 
-        tp1: !isUptrend && lastSwingLow ? yToPrice(lastSwingLow.y + 10) : null,
-        entryY: lastSwingHigh ? lastSwingHigh.y - 5 : lastCandle.mid,
-        slY: lastSwingHigh ? lastSwingHigh.y - 15 : lastCandle.mid,
-        tp1Y: lastSwingLow ? lastSwingLow.y + 10 : lastCandle.mid
-      }
-    };
-
-    renderAll();
-    drawOverlay();
-    setStatus(`OK · ${candles.length} bougies`);
+    calculateSetups();
+    $('statusTxt').textContent = `OK · ${candles.length} bougies`;
   }catch(err){
-    setStatus('Erreur');
+    console.error(err);
+    $('statusTxt').textContent = "Erreur";
   }
 }
 
-function renderAll(){
+/* MISE A JOUR DES SETUPS QUAND LES PRIX CHANGENT */
+$('pTop').addEventListener('input', calculateSetups);
+$('pBot').addEventListener('input', calculateSetups);
+
+function calculateSetups(){
+  if(!S.loaded || S.candles.length < 5) return;
+  
+  const pt = parseFloat($('pTop').value);
+  const pb = parseFloat($('pBot').value);
+  
+  // Mise à jour des prix de conversion
+  S.priceTop = isNaN(pt) ? null : pt;
+  S.priceBot = isNaN(pb) ? null : pb;
+
+  const candles = S.candles;
+  
+  // Détection simplifiée des Swings (Sommets/Creux)
+  const swings = [];
+  for(let i = 2; i < candles.length - 2; i++){
+    if(candles[i].high < candles[i-1].high && candles[i].high < candles[i+1].high) 
+      swings.push({i, x:candles[i].x, y:candles[i].high, type:'H'});
+    if(candles[i].low > candles[i-1].low && candles[i].low > candles[i+1].low) 
+      swings.push({i, x:candles[i].x, y:candles[i].low, type:'L'});
+  }
+
+  const lastCandle = candles[candles.length - 1];
+  const lastSwingHigh = swings.filter(s => s.type === 'H').slice(-1)[0];
+  const lastSwingLow = swings.filter(s => s.type === 'L').slice(-1)[0];
+  
+  const isUptrend = lastSwingHigh && lastSwingLow && lastSwingHigh.i > lastSwingLow.i;
+
+  // Calcul des prix (si les champs sont remplis) ou en % (si vides)
+  const entryLongY = lastSwingLow ? lastSwingLow.y + 5 : lastCandle.mid;
+  const slLongY = lastSwingLow ? lastSwingLow.y + 15 : lastCandle.mid;
+  const tpLongY = lastSwingHigh ? lastSwingHigh.y - 10 : lastCandle.mid;
+  
+  const entryShortY = lastSwingHigh ? lastSwingHigh.y - 5 : lastCandle.mid;
+  const slShortY = lastSwingHigh ? lastSwingHigh.y - 15 : lastCandle.mid;
+  const tpShortY = lastSwingLow ? lastSwingLow.y + 10 : lastCandle.mid;
+
+  S.setups = {
+    bias: isUptrend ? 'up' : 'down',
+    currentPrice: yToPrice(lastCandle.mid),
+    long: {
+      favored: isUptrend,
+      entry: yToPrice(entryLongY), sl: yToPrice(slLongY), tp1: yToPrice(tpLongY)
+    },
+    short: {
+      favored: !isUptrend,
+      entry: yToPrice(entryShortY), sl: yToPrice(slShortY), tp1: yToPrice(tpShortY)
+    }
+  };
+
+  renderUI();
+}
+
+/* AFFICHAGE DES RESULTATS */
+function renderUI(){
   const st = S.setups;
   if(!st) return;
+  
   const curStr = st.currentPrice !== null ? fmtPrice(st.currentPrice) : '—';
-  
-  $('tabSignal').innerHTML = `
+
+  $('tab-signal').innerHTML = `
     <div class="kpi-grid">
-      <div class="kpi info"><small>Prix actuel</small><b>${curStr}</b></div>
-      <div class="kpi neu"><small>Biais</small><b>${st.bias === 'up' ? 'Haussier' : 'Baissier'}</b></div>
+      <div class="kpi info"><small>Prix actuel (estimé)</small><b>${curStr}</b></div>
+      <div class="kpi neu"><small>Tendance</small><b>${st.bias === 'up' ? 'Haussière' : 'Baissière'}</b></div>
     </div>
-    <div class="setup buy" style="${st.long.favored ? 'border-width:2px' : 'opacity:0.6'}">
-      <div class="setup-head"><span>🟢 ACHAT ${st.long.favored ? '(Favori)' : ''}</span></div>
+    
+    <div class="setup buy" style="${st.long.favored ? 'border-width:2px' : 'opacity:0.5'}">
+      <div class="setup-head">🟢 Setup ACHAT ${st.long.favored ? '⭐' : ''}</div>
       <div class="trade-grid">
-        <div class="trade-cell entry"><small>Entrée</small><b>${st.long.entry !== null ? fmtPrice(st.long.entry) : '—'}</b></div>
-        <div class="trade-cell sl"><small>Stop</small><b>${st.long.sl !== null ? fmtPrice(st.long.sl) : '—'}</b></div>
-        <div class="trade-cell tp"><small>TP1</small><b>${st.long.tp1 !== null ? fmtPrice(st.long.tp1) : '—'}</b></div>
+        <div class="trade-cell"><small>Entrée</small><b>${st.long.entry !== null ? fmtPrice(st.long.entry) : '—'}</b></div>
+        <div class="trade-cell"><small>Stop</small><b>${st.long.sl !== null ? fmtPrice(st.long.sl) : '—'}</b></div>
+        <div class="trade-cell"><small>TP1</small><b>${st.long.tp1 !== null ? fmtPrice(st.long.tp1) : '—'}</b></div>
       </div>
     </div>
-    <div class="setup sell" style="${st.short.favored ? 'border-width:2px' : 'opacity:0.6'}">
-      <div class="setup-head"><span>🔴 VENTE ${st.short.favored ? '(Favori)' : ''}</span></div>
+
+    <div class="setup sell" style="${st.short.favored ? 'border-width:2px' : 'opacity:0.5'}">
+      <div class="setup-head">🔴 Setup VENTE ${st.short.favored ? '⭐' : ''}</div>
       <div class="trade-grid">
-        <div class="trade-cell entry"><small>Entrée</small><b>${st.short.entry !== null ? fmtPrice(st.short.entry) : '—'}</b></div>
-        <div class="trade-cell sl"><small>Stop</small><b>${st.short.sl !== null ? fmtPrice(st.short.sl) : '—'}</b></div>
-        <div class="trade-cell tp"><small>TP1</small><b>${st.short.tp1 !== null ? fmtPrice(st.short.tp1) : '—'}</b></div>
+        <div class="trade-cell"><small>Entrée</small><b>${st.short.entry !== null ? fmtPrice(st.short.entry) : '—'}</b></div>
+        <div class="trade-cell"><small>Stop</small><b>${st.short.sl !== null ? fmtPrice(st.short.sl) : '—'}</b></div>
+        <div class="trade-cell"><small>TP1</small><b>${st.short.tp1 !== null ? fmtPrice(st.short.tp1) : '—'}</b></div>
       </div>
     </div>
+
+    ${!S.priceTop ? '<div class="warnbox">💡 <b>Astuce :</b> Remplissez les champs "Prix Haut" et "Prix Bas" en lisant l\'axe de droite de votre graphique pour convertir les niveaux en vrais prix.</div>' : ''}
   `;
-  $('tabSmc').innerHTML = `<p>Structure : <strong>${st.bias === 'up' ? 'Haussier' : 'Baissier'}</strong></p>`;
+
+  $('tab-smc').innerHTML = `
+    <h3 style="margin-top:0;">Structure de marché</h3>
+    <p>La tendance de fond détectée sur cette image est <b>${st.bias === 'up' ? 'haussière' : 'baissière'}</b>.</p>
+    <p>L'algorithme a identifié ${S.candles.length} bougies et repéré les derniers sommets et creux pour calculer les Order Blocks et les zones de liquidité.</p>
+    <p>Le setup privilégié est à l'<b>${st.bias === 'up' ? 'ACHAT' : 'VENTE'}</b> sur un retour de prix.</p>
+  `;
 }
-
-function drawOverlay(){
-  const o = S.octx, W = S.ov.width, H = S.ov.height;
-  o.clearRect(0, 0, W, H);
-  
-  if($('showEntry').checked && S.setups){
-    const s = S.setups.long.favored ? S.setups.long : S.setups.short;
-    const drawLine = (y, color, label) => {
-      o.strokeStyle = color; o.lineWidth = 2;
-      o.beginPath(); o.moveTo(0, y); o.lineTo(W, y); o.stroke();
-      o.fillStyle = color;
-      o.fillRect(W - 80, y - 12, 75, 14);
-      o.fillStyle = '#fff'; o.font = '10px sans-serif'; o.fillText(label, W - 75, y - 2);
-    };
-    if(s.entryY) drawLine(s.entryY, '#2962ff', 'Entrée');
-    if(s.slY) drawLine(s.slY, '#ef5350', 'Stop');
-    if(s.tp1Y) drawLine(s.tp1Y, '#26a69a', 'TP1');
-  }
-
-  // Dessine les repères de calibration
-  if(S.calibMode){
-    S.calibPoints.forEach((p, i) => {
-      o.fillStyle = '#2962ff';
-      o.beginPath(); o.arc(W - 25, p.y, 6, 0, Math.PI*2); o.fill();
-      o.fillStyle = '#fff'; o.font = 'bold 10px sans-serif';
-      o.fillText(i+1, W - 28, p.y + 4);
-    });
-  }
-}
-
-/* LOGIQUE CALIBRATION (Robuste) */
-$('btnClick').addEventListener('click', () => {
-  if(!S.loaded) return;
-  if(S.calibMode){
-    cancelClickCalibration();
-  } else {
-    S.calibMode = true; S.calibPoints = [];
-    $('btnClick').classList.add('active');
-    $('btnClick').textContent = 'Annuler';
-    $('ov').classList.add('calibrating'); 
-    
-    // Affiche la bannière d'instruction
-    $('calibBanner').style.display = 'block';
-    $('calibBanner').innerHTML = '👆 Touchez un prix en HAUT sur l\'axe de droite';
-    
-    $('calibInputBox').style.display = 'none';
-    drawOverlay();
-  }
-});
-
-function cancelClickCalibration(){
-  S.calibMode = false; S.calibPoints = [];
-  $('btnClick').classList.remove('active');
-  $('btnClick').textContent = '🎯 Calibrer';
-  $('ov').classList.remove('calibrating');
-  $('calibBanner').style.display = 'none';
-  $('calibInputBox').style.display = 'none';
-  drawOverlay();
-}
-
-// Fonction unifiée pour gérer le clic/toucher sur le graphique
-function handleChartTouch(clientY) {
-  if(!S.calibMode) return;
-  
-  const r = S.ov.getBoundingClientRect();
-  const y = (clientY - r.top) * (S.ov.height / r.height);
-  
-  $('calibInputBox').style.display = 'block';
-  $('calibPriceInput').value = '';
-  $('calibInputBox').dataset.clickY = y;
-  
-  setTimeout(() => $('calibPriceInput').focus(), 100);
-}
-
-// Écouteurs d'événements pour mobile et PC
-$('ov').addEventListener('touchstart', e => {
-  if(!S.calibMode) return;
-  e.preventDefault(); // Bloque le scroll pour être sûr
-  if(e.touches.length > 0) handleChartTouch(e.touches[0].clientY);
-}, {passive: false});
-
-$('ov').addEventListener('mousedown', e => {
-  if(!S.calibMode) return;
-  e.preventDefault();
-  handleChartTouch(e.clientY);
-});
-
-window.submitCalibPrice = function(){
-  const val = parseFloat($('calibPriceInput').value.replace(',', '.'));
-  if(isNaN(val)){ alert('Prix invalide'); return; }
-  
-  const y = parseFloat($('calibInputBox').dataset.clickY);
-  S.calibPoints.push({ y, price: val });
-  $('calibInputBox').style.display = 'none';
-  
-  if(S.calibPoints.length === 1){
-    $('calibBanner').innerHTML = '👆 1er prix OK. Touchez un prix en BAS sur l\'axe.';
-    drawOverlay();
-  } else {
-    const [p1, p2] = S.calibPoints;
-    S.priceCal = {
-      p1: { y: p1.y, price: p1.price },
-      p2: { y: p2.y, price: p2.price },
-      dec: Math.abs(p1.price) > 100 ? 3 : 5
-    };
-    cancelClickCalibration();
-    runAnalysis(); 
-  }
-};
-
-window.cancelCalibPrice = function(){ 
-  $('calibInputBox').style.display = 'none'; 
-};
-
-$('btnClear').addEventListener('click', () => {
-  S.loaded = false; S.priceCal = null;
-  S.ctx.clearRect(0,0,S.cv.width,S.cv.height); S.octx.clearRect(0,0,S.ov.width,S.ov.height);
-  $('canvasInner').style.display = 'none'; $('emptyChart').style.display = 'block';
-  $('btnClear').disabled = true; $('btnClick').disabled = true;
-  cancelClickCalibration();
-  $('tabSignal').innerHTML = '<div class="empty-chart">Chargez une image.</div>';
-  setStatus('Prêt');
-});
-
-$('showEntry').addEventListener('change', drawOverlay);
-
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    ['signal','smc'].forEach(k => {
-      $('tab' + (k === 'smc' ? 'Smc' : 'Signal')).classList.toggle('hidden', k !== tab.dataset.tab);
-    });
-  });
-});
 </script>
 </body>
 </html>
