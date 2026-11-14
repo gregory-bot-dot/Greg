@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>ChartVision Pro — Forex & Or en Temps Réel</title>
-<!-- Librairie officielle TradingView Lightweight Charts -->
 <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -20,30 +19,21 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     font-size:13px; overflow:hidden;
   }
-  
-  /* HEADER */
   header{
     padding:10px 15px; background:#0e1219; border-bottom:1px solid var(--line);
     display:flex; align-items:center; gap:10px; height:50px; flex-wrap:wrap;
   }
   header h1{font-size:16px;margin:0;font-weight:700; white-space:nowrap;}
   header h1 span{color:var(--acc)}
-  
   .controls{display:flex; gap:6px; margin-left:auto; flex-wrap:wrap;}
   select{
     background:var(--panel2); border:1px solid var(--line); color:var(--txt);
     border-radius:5px; padding:6px 8px; font-size:12px; font-family:inherit; outline:none; font-weight:bold;
   }
-
-  /* LAYOUT */
   .app{display:flex; height:calc(100vh - 50px);}
   @media(max-width:900px){ .app{flex-direction:column;} }
-
-  /* GRAPHIQUE */
   .chart-container{flex:1; position:relative; background:#05080c;}
   #chart{width:100%; height:100%;}
-
-  /* PANNEAU RESULTATS */
   .panel{
     width:380px; background:var(--panel); border-left:1px solid var(--line);
     display:flex; flex-direction:column; overflow-y:auto;
@@ -51,24 +41,20 @@
   @media(max-width:900px){ 
     .panel{width:100%; height:40vh; border-left:none; border-top:1px solid var(--line);} 
   }
-
   .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted);}
-  
-  /* CARTES DE SETUP */
   .setup{padding:15px; border-bottom:1px solid var(--line);}
   .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.1) 0%, transparent 100%);}
   .setup.sell{background:linear-gradient(180deg, rgba(239,83,80,0.1) 0%, transparent 100%);}
-  
   .setup-title{font-weight:bold; font-size:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;}
   .setup.buy .setup-title{color:var(--up)} .setup.sell .setup-title{color:var(--down)}
-  
   .trade-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
   .cell{background:rgba(0,0,0,0.3); padding:8px; border-radius:4px; border:1px solid var(--line);}
   .cell small{display:block; color:var(--dim); font-size:10px; text-transform:uppercase; margin-bottom:2px;}
   .cell b{font-family:monospace; font-size:13px;}
-
   .live-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--up); margin-right:5px; animation:pulse 1.5s infinite;}
   @keyframes pulse{ 0% { box-shadow: 0 0 0 0 rgba(38,166,154,0.7); } 70% { box-shadow: 0 0 0 6px rgba(38,166,154,0); } 100% { box-shadow: 0 0 0 0 rgba(38,166,154,0); } }
+  .btn-test{background:var(--acc); color:#fff; border:none; padding:8px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; margin:10px;}
+  .debug-box{background:#1a1f2c; border:1px solid var(--line); padding:10px; margin:10px; border-radius:4px; font-size:11px; color:var(--muted); max-height:150px; overflow:auto; white-space:pre-wrap; word-break:break-all;}
 </style>
 </head>
 <body>
@@ -94,7 +80,7 @@
     </select>
     <select id="tfSelect">
       <option value="1m">1 Minute</option>
-      <option value="5m">5 Minutes</option>
+      <option value="5m" selected>5 Minutes</option>
       <option value="15m">15 Minutes</option>
       <option value="1h">1 Heure</option>
     </select>
@@ -102,20 +88,18 @@
 </header>
 
 <div class="app">
-  <!-- ZONE GRAPHIQUE -->
   <div class="chart-container">
     <div id="chart"></div>
   </div>
-
-  <!-- ZONE ANALYSE -->
   <div class="panel">
     <div class="panel-header">
       <span class="live-dot"></span> Analyse SMC en temps réel
     </div>
-    
     <div id="analysisContent">
       <div style="padding:20px; text-align:center; color:var(--muted);">Chargement des données...</div>
     </div>
+    <button class="btn-test" onclick="testConnection()">🔍 Tester la connexion API</button>
+    <div id="debugOutput" class="debug-box" style="display:none;"></div>
   </div>
 </div>
 
@@ -129,20 +113,18 @@ let currentTF = '5m';
 let currentPrice = 0;
 let updateInterval = null;
 
-// Formatage des prix (2 décimales pour l'Or, 4 ou 5 pour le Forex)
 function getDecimals(symbol) {
   if(symbol.includes('JPY')) return 3;
   if(symbol === 'XAUUSD') return 2;
   if(symbol === 'BTCUSD') return 2;
-  return 5; // EURUSD, GBPUSD, etc.
+  return 5;
 }
 
 /* =========================================
-   1. INITIALISATION DU GRAPHIQUE
+   INITIALISATION DU GRAPHIQUE
    ========================================= */
 function initChart() {
   const chartContainer = $('chart');
-  
   chart = LightweightCharts.createChart(chartContainer, {
     layout: { background: { type: 'solid', color: '#05080c' }, textColor: '#d1d4dc' },
     grid: { vertLines: { color: '#1a1f2c' }, horzLines: { color: '#1a1f2c' } },
@@ -150,129 +132,134 @@ function initChart() {
     rightPriceScale: { borderColor: '#232c3d' },
     timeScale: { borderColor: '#232c3d', timeVisible: true, secondsVisible: false },
   });
-
   candleSeries = chart.addCandlestickSeries({
     upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
     wickUpColor: '#26a69a', wickDownColor: '#ef5350',
   });
-
   new ResizeObserver(entries => {
-    if (entries.length === 0 || entries[0].target !== chartContainer) { return; }
+    if (entries.length === 0 || entries[0].target !== chartContainer) return;
     const newRect = entries[0].contentRect;
     chart.applyOptions({ width: newRect.width, height: newRect.height });
   }).observe(chartContainer);
 }
 
 /* =========================================
-   2. RÉCUPÉRATION DES DONNÉES (Biquote - Sans Clé API)
+   TEST DE CONNEXION (Debug)
+   ========================================= */
+async function testConnection() {
+  const debug = $('debugOutput');
+  debug.style.display = 'block';
+  debug.textContent = "Test en cours...\n";
+
+  const url = `https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=5`;
+  debug.textContent += `URL: ${url}\n`;
+
+  try {
+    const response = await fetch(url);
+    debug.textContent += `Statut HTTP: ${response.status}\n`;
+    const text = await response.text();
+    debug.textContent += `Réponse brute:\n${text.substring(0, 500)}\n`;
+  } catch (err) {
+    debug.textContent += `Erreur réseau: ${err.message}\n`;
+    debug.textContent += "→ L'API est peut-être bloquée par le navigateur (CORS).\n";
+    debug.textContent += "→ Essayez avec le proxy CORS ci-dessous.\n";
+  }
+}
+
+/* =========================================
+   RÉCUPÉRATION DES DONNÉES (avec proxy CORS)
    ========================================= */
 async function fetchData() {
   try {
-    // Endpoint Biquote pour les bougies OHLC (Forex, Or, Crypto)
-    const url = `https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=200`;
-    const response = await fetch(url);
-    
+    // On utilise un proxy CORS public pour éviter les blocages réseau
+    const targetUrl = `https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=200`;
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+
+    const response = await fetch(proxyUrl);
     if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-    
+
     const result = await response.json();
     const bars = result.bars || [];
-    
-    if (bars.length === 0) {
-      throw new Error("Aucune donnée reçue pour ce symbole. Le marché est peut-être fermé (Forex fermé le week-end).");
-    }
-    
-    // Formatage pour TradingView Lightweight Charts
+    if (bars.length === 0) throw new Error("Aucune donnée reçue (marché fermé ?)");
+
+    // Formatage : openTime est une chaîne ISO 8601
     currentData = bars.map(d => ({
       time: new Date(d.openTime).getTime() / 1000,
       open: d.open,
       high: d.high,
       low: d.low,
       close: d.close
-    })).sort((a, b) => a.time - b.time); // Tri chronologique
-    
+    })).sort((a, b) => a.time - b.time);
+
     candleSeries.setData(currentData);
     currentPrice = currentData[currentData.length - 1].close;
-    
     analyzeSMC();
-    
   } catch (err) {
     console.error("Erreur API:", err);
-    $('analysisContent').innerHTML = `<div style="padding:20px; color:var(--down);">Erreur de connexion.<br><br><small>${err.message}</small><br><br><small>Note : Le Forex est fermé le week-end.</small></div>`;
+    $('analysisContent').innerHTML = `<div style="padding:20px; color:var(--down);">
+      Erreur de connexion.<br><br>
+      <small>${err.message}</small><br><br>
+      <small>Cliquez sur « Tester la connexion API » pour voir le détail.</small>
+    </div>`;
   }
 }
 
 /* =========================================
-   3. ALGORITHME D'ANALYSE SMC
+   ANALYSE SMC (identique)
    ========================================= */
 function analyzeSMC() {
-  if(currentData.length < 10) return;
+  if (currentData.length < 10) return;
 
-  // 1. Détection des Swings (Sommets / Creux)
   const swings = [];
-  for(let i = 2; i < currentData.length - 2; i++) {
+  for (let i = 2; i < currentData.length - 2; i++) {
     const c = currentData[i];
-    if(c.high > currentData[i-1].high && c.high > currentData[i+1].high) {
-      swings.push({ index: i, price: c.high, type: 'H', time: c.time });
-    }
-    if(c.low < currentData[i-1].low && c.low < currentData[i+1].low) {
-      swings.push({ index: i, price: c.low, type: 'L', time: c.time });
-    }
+    if (c.high > currentData[i-1].high && c.high > currentData[i+1].high)
+      swings.push({ index: i, price: c.high, type: 'H' });
+    if (c.low < currentData[i-1].low && c.low < currentData[i+1].low)
+      swings.push({ index: i, price: c.low, type: 'L' });
   }
 
-  // 2. Tendance (basée sur les 2 derniers sommets/creux)
   const highs = swings.filter(s => s.type === 'H');
   const lows = swings.filter(s => s.type === 'L');
-  
   let trend = 'neutral';
-  if(highs.length >= 2 && lows.length >= 2) {
+  if (highs.length >= 2 && lows.length >= 2) {
     const lastH = highs[highs.length-1];
     const prevH = highs[highs.length-2];
     const lastL = lows[lows.length-1];
     const prevL = lows[lows.length-2];
-    
-    if(lastH.price > prevH.price && lastL.price > prevL.price) trend = 'up';
-    if(lastH.price < prevH.price && lastL.price < prevL.price) trend = 'down';
+    if (lastH.price > prevH.price && lastL.price > prevL.price) trend = 'up';
+    if (lastH.price < prevH.price && lastL.price < prevL.price) trend = 'down';
   }
 
-  // 3. Détection des Order Blocks (OB)
   let lastOB = null;
-  for(let i = currentData.length - 5; i < currentData.length - 1; i++) {
+  for (let i = currentData.length - 5; i < currentData.length - 1; i++) {
     const c = currentData[i];
     const prev = currentData[i-1];
-    
-    if(c.close > c.open && prev.close < prev.open) {
+    if (c.close > c.open && prev.close < prev.open) {
       const bodySize = Math.abs(c.close - c.open);
-      if(bodySize > (currentPrice * 0.0001)) { // Impulsion significative
-        lastOB = { type: 'bullish', top: prev.high, bottom: prev.low, price: prev.close };
+      if (bodySize > (currentPrice * 0.0001)) {
+        lastOB = { type: 'bullish', top: prev.high, bottom: prev.low };
       }
     }
   }
 
-  // 4. Calcul des setups
-  const lastCandle = currentData[currentData.length - 1];
-  
-  let longEntry = lastOB ? lastOB.top : currentPrice * 0.999;
-  let longSL = lastOB ? lastOB.bottom * 0.9995 : currentPrice * 0.998;
-  let longTP = currentPrice * 1.002;
-  
-  let shortEntry = currentPrice * 1.001;
-  let shortSL = currentPrice * 1.002;
-  let shortTP = currentPrice * 0.998;
+  const longEntry = lastOB ? lastOB.top : currentPrice * 0.999;
+  const longSL = lastOB ? lastOB.bottom * 0.9995 : currentPrice * 0.998;
+  const longTP = currentPrice * 1.002;
+  const shortEntry = currentPrice * 1.001;
+  const shortSL = currentPrice * 1.002;
+  const shortTP = currentPrice * 0.998;
 
-  // 5. Mise à jour de l'interface
   renderPanel(trend, lastOB, longEntry, longSL, longTP, shortEntry, shortSL, shortTP);
-  
-  // 6. Dessin des lignes sur le graphique
   drawLines(longEntry, longSL, longTP, shortEntry, shortSL, shortTP);
 }
 
 /* =========================================
-   4. AFFICHAGE HTML
+   AFFICHAGE
    ========================================= */
 function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
   const dec = getDecimals(currentSymbol);
   const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
-  
   const trendColor = trend === 'up' ? 'var(--up)' : trend === 'down' ? 'var(--down)' : 'var(--warn)';
   const trendText = trend === 'up' ? 'HAUSSIÈRE' : trend === 'down' ? 'BAISSIÈRE' : 'NEUTRE';
 
@@ -282,8 +269,7 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
       <div style="font-size:16px; font-weight:bold; color:${trendColor}">Tendance : ${trendText}</div>
     </div>
   `;
-
-  if(ob) {
+  if (ob) {
     html += `
       <div style="padding:10px 15px; background:rgba(41,98,255,0.1); border-bottom:1px solid var(--line); font-size:12px;">
         🟦 <b>Order Block haussier détecté</b><br>
@@ -291,7 +277,6 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
       </div>
     `;
   }
-
   html += `
     <div class="setup buy">
       <div class="setup-title">
@@ -305,7 +290,6 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
         <div class="cell"><small>R:R</small><b>${((lT-lE)/(lE-lS)).toFixed(2)}</b></div>
       </div>
     </div>
-
     <div class="setup sell">
       <div class="setup-title">
         <span>🔴 Setup VENTE</span>
@@ -319,42 +303,34 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
       </div>
     </div>
   `;
-
   $('analysisContent').innerHTML = html;
 }
 
-/* =========================================
-   5. DESSIN SUR LE GRAPHIQUE
-   ========================================= */
 function drawLines(lE, lS, lT, sE, sS, sT) {
-  candleSeries.setData(currentData); 
-  
+  candleSeries.setData(currentData);
   const addLine = (price, color, title, style) => {
     candleSeries.createPriceLine({
       price: price, color: color, lineWidth: 1,
       lineStyle: style, axisLabelVisible: true, title: title,
     });
   };
-
   addLine(lE, '#2962ff', 'Entrée L', LightweightCharts.LineStyle.Solid);
   addLine(lS, '#ef5350', 'SL L', LightweightCharts.LineStyle.Dashed);
   addLine(lT, '#26a69a', 'TP L', LightweightCharts.LineStyle.Dashed);
 }
 
 /* =========================================
-   6. INITIALISATION ET MISE A JOUR AUTO
+   LANCEMENT
    ========================================= */
 initChart();
 fetchData();
 
-// Rafraîchissement automatique toutes les 5 secondes
 function startAutoUpdate() {
-  if(updateInterval) clearInterval(updateInterval);
+  if (updateInterval) clearInterval(updateInterval);
   updateInterval = setInterval(fetchData, 5000);
 }
 startAutoUpdate();
 
-// Changement d'actif ou de timeframe
 $('symbolSelect').addEventListener('change', (e) => {
   currentSymbol = e.target.value;
   $('analysisContent').innerHTML = '<div style="padding:20px; text-align:center;">Changement d\'actif...</div>';
@@ -365,7 +341,6 @@ $('tfSelect').addEventListener('change', (e) => {
   $('analysisContent').innerHTML = '<div style="padding:20px; text-align:center;">Changement de timeframe...</div>';
   fetchData();
 });
-
 </script>
 </body>
 </html>
