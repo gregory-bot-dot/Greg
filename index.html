@@ -1,9 +1,23 @@
+C'est une remarque très juste. Sur ta capture, on voit que le prix est à 64056.03 et le TP à 64061.58. Le prix a touché le TP, puis il est remonté de quelques centimes.
+
+Le problème, c'est que l'application recalcule tout toutes les 5 secondes. Si le prix bouge de 1 ou 2 dollars, l'algorithme peut détecter un nouvel Order Block, ce qui fait sauter les lignes d'un coup. De plus, le statut "Objectif atteint" peut clignoter si le prix repasse juste en dessous.
+
+Pour un trading au millimètre, on ne peut pas travailler dans ce "bruit". J'ai donc verrouillé la logique :
+
+1. L'Order Block est figé : Dès qu'un setup est validé, les lignes bleues (Entrée), rouges (SL) et vertes (TP) ne bougent plus. Elles restent ancrées sur le graphique.
+2. Ignorer la bougie en cours : L'algorithme ne cherche plus d'Order Block sur la bougie en train de se former (qui bouge toutes les secondes). Il attend qu'elle soit clôturée pour être sûr que la structure est réelle.
+3. Statut définitif : Si le prix touche le TP ou le SL, le trade est marqué comme "Terminé" (Objectif atteint ou Invalidé). Le statut ne clignotera plus même si le prix fait des aller-retours autour de la ligne.
+4. Recherche du prochain trade : L'application ne cherchera un nouveau trade que si tu changes de timeframe, ou si la tendance s'inverse complètement (l'EMA 50 change de sens).
+
+Voici le code avec cette logique de "verrouillage" (State Machine) :
+
+```html
 <!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — MTF Strict</title>
+<title>ChartVision Pro — Locked Setup</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -39,7 +53,6 @@
   .panel{ width:340px; background:var(--panel); border-left:1px solid var(--line); display:flex; flex-direction:column; overflow-y:auto; }
   @media(max-width:900px){ .panel{width:100%; height:50vh; border-left:none; border-top:1px solid var(--line);} }
   
-  /* MTF BADGES FIXES */
   .mtf-row { display: flex; gap: 6px; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.2); }
   .mtf-badge { flex: 1; text-align: center; padding: 6px; border-radius: 6px; font-size: 11px; font-weight: bold; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); }
   .mtf-badge.up { border-color: var(--up); color: var(--up); background: rgba(38,166,154,0.1); }
@@ -51,6 +64,7 @@
   .status-progress { background: rgba(38,166,154,0.15); color: var(--up); }
   .status-invalid { background: rgba(239,83,80,0.15); color: var(--down); }
   .status-confluence { background: rgba(156,39,176,0.2); color: #e1bee7; border-left: 4px solid #9c27b0; }
+  .status-done { background: rgba(38,166,154,0.3); color: #fff; border-left: 4px solid var(--up); }
 
   .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;}
   
@@ -132,6 +146,10 @@ let alertTriggered = false;
 
 let trends = { current: 'neutral', m15: 'neutral', h4: 'neutral' };
 
+// Variables pour le verrouillage du trade
+let lockedSetup = null;
+let tradeState = 'waiting'; // 'waiting', 'active', 'tp_reached', 'sl_hit'
+
 if(localStorage.getItem('cv_symbol')) currentSymbol = localStorage.getItem('cv_symbol');
 if(localStorage.getItem('cv_tf')) currentTF = localStorage.getItem('cv_tf');
 
@@ -184,7 +202,6 @@ function getTrend(data) {
 }
 
 async function fetchHTF() {
-    // On charge toujours la 15m et la 4h pour les badges
     const res15 = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=15m&limit=100&t=${Date.now()}`);
     if (res15 && res15.bars) {
         trends.m15 = getTrend(res15.bars);
@@ -229,33 +246,60 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC STRICTE
+   LOGIQUE SMC AVEC VERROUILLAGE (STATE MACHINE)
    ========================================= */
-let activeSetup = null; 
-
 function analyzeSMC() {
   if (currentData.length < 50) return;
   try {
     const isCurrentUp = trends.current === 'up';
-    
-    // --- RECHERCHE D'UN ORDER BLOCK VALIDE (NON CASSÉ) ---
+
+    // 1. SI ON A DEJA UN SETUP VERROUILLE
+    if (lockedSetup) {
+        // Si la tendance s'est inversée sur le TF actuel, on reset le setup
+        if (lockedSetup.direction !== trends.current) {
+            lockedSetup = null;
+            tradeState = 'waiting';
+        } else {
+            // Vérifier si le trade a atteint son objectif ou son stop
+            if (tradeState !== 'tp_reached' && tradeState !== 'sl_hit') {
+                if ((lockedSetup.type === 'buy' && currentPrice >= lockedSetup.tp) || 
+                    (lockedSetup.type === 'sell' && currentPrice <= lockedSetup.tp)) {
+                    tradeState = 'tp_reached';
+                    if ($('alertToggle').checked && !alertTriggered) triggerAlert("🎯 Objectif TP atteint !", "var(--up)");
+                } 
+                else if ((lockedSetup.type === 'buy' && currentPrice < lockedSetup.sl) || 
+                         (lockedSetup.type === 'sell' && currentPrice > lockedSetup.sl)) {
+                    tradeState = 'sl_hit';
+                    if ($('alertToggle').checked && !alertTriggered) triggerAlert("🛑 Stop-Loss touché.", "var(--down)");
+                }
+            }
+            
+            // Mettre à jour l'affichage et sortir
+            updateTradeStatus(currentPrice, isCurrentUp);
+            renderPanel(isCurrentUp);
+            drawLines(lockedSetup);
+            return;
+        }
+    }
+
+    // 2. SI ON N'A PAS DE SETUP (ou qu'on vient de le reset), ON EN CHERCHE UN
+    // On utilise uniquement les bougies FERMÉES (on exclut la dernière qui est en cours)
+    const closedCandles = currentData.slice(0, -1);
     let validOB = null;
     
-    // On cherche du plus récent au plus ancien
-    for (let i = currentData.length - 3; i >= currentData.length - 30; i--) {
-        const c = currentData[i]; const prev = currentData[i-1];
+    for (let i = closedCandles.length - 2; i >= closedCandles.length - 30; i--) {
+        const c = closedCandles[i]; const prev = closedCandles[i-1];
         
         if (isCurrentUp) {
-            // Chercher un OB Haussier (Rouge -> Grosse Verte)
             if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
                 const obTop = prev.high;
                 const obBottom = prev.low;
                 const sl = obBottom - (obBottom * 0.0002);
                 
-                // VÉRIFICATION : Le prix n'a pas cassé le SL depuis sa formation
                 let isValid = true;
+                // On vérifie l'invalidation sur les bougies fermées + le prix actuel
                 for(let j = i+1; j < currentData.length; j++) {
-                    if(currentData[j].low < sl) { isValid = false; break; } // L'OB a été invalidé
+                    if(currentData[j].low < sl) { isValid = false; break; }
                 }
                 
                 if(isValid) {
@@ -264,7 +308,6 @@ function analyzeSMC() {
                 }
             }
         } else {
-            // Chercher un OB Baissier (Verte -> Grosse Rouge)
             if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
                 const obTop = prev.high;
                 const obBottom = prev.low;
@@ -272,7 +315,7 @@ function analyzeSMC() {
                 
                 let isValid = true;
                 for(let j = i+1; j < currentData.length; j++) {
-                    if(currentData[j].high > sl) { isValid = false; break; } // L'OB a été invalidé
+                    if(currentData[j].high > sl) { isValid = false; break; }
                 }
                 
                 if(isValid) {
@@ -283,60 +326,70 @@ function analyzeSMC() {
         }
     }
 
-    // --- CONFIGURATION DU SETUP ACTIF ---
     if (validOB) {
-        activeSetup = {
+        // On verrouille le setup !
+        lockedSetup = {
             type: isCurrentUp ? 'buy' : 'sell',
+            direction: trends.current,
             entry: validOB.entry,
             sl: validOB.sl,
             tp: isCurrentUp ? validOB.entry + (Math.abs(validOB.entry - validOB.sl) * 2) : validOB.entry - (Math.abs(validOB.entry - validOB.sl) * 2)
         };
+        tradeState = 'active';
+        
+        updateTradeStatus(currentPrice, isCurrentUp);
+        renderPanel(isCurrentUp);
+        drawLines(lockedSetup);
     } else {
-        activeSetup = null; // Aucun OB valide trouvé
+        lockedSetup = null;
+        tradeState = 'waiting';
+        updateTradeStatus(currentPrice, isCurrentUp);
+        renderPanel(isCurrentUp);
+        drawLines(null);
     }
-
-    // --- LOGIQUE DE CONFLUENCE MTF ---
-    let isConfluent = false;
-    let conflictDetected = false;
-    
-    if (isCurrentUp) {
-        if (trends.m15 === 'down' || trends.h4 === 'down') conflictDetected = true;
-        if (trends.m15 === 'up' && trends.h4 === 'up') isConfluent = true;
-    } else {
-        if (trends.m15 === 'up' || trends.h4 === 'up') conflictDetected = true;
-        if (trends.m15 === 'down' && trends.h4 === 'down') isConfluent = true;
-    }
-
-    updateTradeStatus(currentPrice, isConfluent, conflictDetected, isCurrentUp);
-    renderPanel(isCurrentUp, validOB);
-    drawLines(activeSetup);
 
   } catch(e) { console.error("Erreur:", e); }
 }
 
-function updateTradeStatus(price, isConfluent, conflict, isCurrentUp) {
+function updateTradeStatus(price, isCurrentUp) {
     const statusDiv = $('tradeStatus');
     statusDiv.className = ''; 
 
-    if (!activeSetup) {
+    if (!lockedSetup) {
         statusDiv.textContent = "🔍 En attente d'un nouveau setup valide...";
         statusDiv.classList.add('status-wait');
         return;
     }
 
-    const setup = activeSetup;
+    const setup = lockedSetup;
     const tolerance = price * 0.0002; 
     const isBuy = setup.type === 'buy';
 
-    // 1. Vérification TP
-    if ((isBuy && price >= setup.tp) || (!isBuy && price <= setup.tp)) {
-        statusDiv.textContent = `🎯 Objectif TP atteint !`;
-        statusDiv.classList.add('status-progress');
+    // 1. Si le trade est déjà TERMINE
+    if (tradeState === 'tp_reached') {
+        statusDiv.textContent = `🎯 Objectif TP atteint ! (Trade Terminé)`;
+        statusDiv.classList.add('status-done');
+        return;
+    }
+    if (tradeState === 'sl_hit') {
+        statusDiv.textContent = `🛑 Setup invalidé (SL touché).`;
+        statusDiv.classList.add('status-invalid');
         return;
     }
 
-    // 2. Vérification Zone d'Entrée
+    // 2. Si le prix touche le TP
+    if ((isBuy && price >= setup.tp) || (!isBuy && price <= setup.tp)) {
+        tradeState = 'tp_reached';
+        statusDiv.textContent = `🎯 Objectif TP atteint !`;
+        statusDiv.classList.add('status-done');
+        return;
+    }
+
+    // 3. Zone d'entrée
     if (price >= setup.entry - tolerance && price <= setup.entry + tolerance) {
+        let isConfluent = (isBuy && trends.m15 === 'up' && trends.h4 === 'up') || (!isBuy && trends.m15 === 'down' && trends.h4 === 'down');
+        let conflict = (isBuy && (trends.m15 === 'down' || trends.h4 === 'down')) || (!isBuy && (trends.m15 === 'up' || trends.h4 === 'up'));
+
         if (conflict) {
             statusDiv.textContent = `⚠️ Entrée atteinte, CONFLIT MTF`;
             statusDiv.classList.add('status-wait');
@@ -350,7 +403,7 @@ function updateTradeStatus(price, isConfluent, conflict, isCurrentUp) {
         return;
     }
 
-    // 3. Attente du repli
+    // 4. Attente
     if ((isBuy && price > setup.entry) || (!isBuy && price < setup.entry)) {
         statusDiv.textContent = `⏳ Attendre le repli vers ${setup.entry.toFixed(2)}`;
         statusDiv.classList.add('status-wait');
@@ -360,12 +413,12 @@ function updateTradeStatus(price, isConfluent, conflict, isCurrentUp) {
     }
 }
 
-function renderPanel(isCurrentUp, validOB) {
+function renderPanel(isCurrentUp) {
   const dec = getDecimals(currentSymbol);
   const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
   
-  const longClass = isCurrentUp ? 'buy' : 'buy inactive';
-  const shortClass = !isCurrentUp ? 'sell' : 'sell inactive';
+  const longClass = (lockedSetup && lockedSetup.type === 'buy') ? 'buy' : 'buy inactive';
+  const shortClass = (lockedSetup && lockedSetup.type === 'sell') ? 'sell' : 'sell inactive';
 
   let html = `
     <div style="padding:10px 15px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
@@ -374,35 +427,28 @@ function renderPanel(isCurrentUp, validOB) {
     </div>
   `;
 
-  if (activeSetup) {
-      const lE = activeSetup.type === 'buy' ? activeSetup.entry : null;
-      const lS = activeSetup.type === 'buy' ? activeSetup.sl : null;
-      const lT = activeSetup.type === 'buy' ? activeSetup.tp : null;
-      
-      const sE = activeSetup.type === 'sell' ? activeSetup.entry : null;
-      const sS = activeSetup.type === 'sell' ? activeSetup.sl : null;
-      const sT = activeSetup.type === 'sell' ? activeSetup.tp : null;
-
+  if (lockedSetup) {
+      const isBuy = lockedSetup.type === 'buy';
       html += `
         <div class="setup ${longClass}">
-          <div class="setup-title"><span>🟢 ACHAT</span>${isCurrentUp ? '<span style="font-size:10px;background:var(--up);color:#000;padding:2px 6px;border-radius:10px;">ACTIF</span>' : ''}</div>
+          <div class="setup-title"><span>🟢 ACHAT</span>${isBuy ? '<span style="font-size:10px;background:var(--up);color:#000;padding:2px 6px;border-radius:10px;">ACTIF</span>' : ''}</div>
           <div class="trade-grid">
-            <div class="cell precision"><small>Entrée</small><b>${lE ? fmt(lE) : '—'}</b></div>
-            <div class="cell"><small>Stop-Loss</small><b>${lS ? fmt(lS) : '—'}</b></div>
-            <div class="cell"><small>TP (R:R 2)</small><b>${lT ? fmt(lT) : '—'}</b></div>
+            <div class="cell precision"><small>Entrée</small><b>${isBuy ? fmt(lockedSetup.entry) : '—'}</b></div>
+            <div class="cell"><small>Stop-Loss</small><b>${isBuy ? fmt(lockedSetup.sl) : '—'}</b></div>
+            <div class="cell"><small>TP (R:R 2)</small><b>${isBuy ? fmt(lockedSetup.tp) : '—'}</b></div>
           </div>
         </div>
         <div class="setup ${shortClass}">
-          <div class="setup-title"><span>🔴 VENTE</span>${!isCurrentUp ? '<span style="font-size:10px;background:var(--down);color:#fff;padding:2px 6px;border-radius:10px;">ACTIF</span>' : ''}</div>
+          <div class="setup-title"><span>🔴 VENTE</span>${!isBuy ? '<span style="font-size:10px;background:var(--down);color:#fff;padding:2px 6px;border-radius:10px;">ACTIF</span>' : ''}</div>
           <div class="trade-grid">
-            <div class="cell precision"><small>Entrée</small><b>${sE ? fmt(sE) : '—'}</b></div>
-            <div class="cell"><small>Stop-Loss</small><b>${sS ? fmt(sS) : '—'}</b></div>
-            <div class="cell"><small>TP (R:R 2)</small><b>${sT ? fmt(sT) : '—'}</b></div>
+            <div class="cell precision"><small>Entrée</small><b>${!isBuy ? fmt(lockedSetup.entry) : '—'}</b></div>
+            <div class="cell"><small>Stop-Loss</small><b>${!isBuy ? fmt(lockedSetup.sl) : '—'}</b></div>
+            <div class="cell"><small>TP (R:R 2)</small><b>${!isBuy ? fmt(lockedSetup.tp) : '—'}</b></div>
           </div>
         </div>
       `;
   } else {
-      html += `<div class="loading-text">Aucun Order Block valide n'a été trouvé. La structure a peut-être été cassée.</div>`;
+      html += `<div class="loading-text">Aucun setup actif. En attente d'une structure claire...</div>`;
   }
 
   $('analysisContent').innerHTML = html;
@@ -412,7 +458,7 @@ function drawLines(setup) {
   priceLines.forEach(line => candleSeries.removePriceLine(line));
   priceLines = [];
   
-  if (!setup) return; // Si pas de setup valide, on ne trace rien
+  if (!setup) return; 
   
   const addLine = (price, color, title, style) => {
     const line = candleSeries.createPriceLine({ price, color, lineWidth: 2, lineStyle: style, axisLabelVisible: true, title });
@@ -422,12 +468,6 @@ function drawLines(setup) {
   addLine(setup.entry, '#2962ff', 'Entrée', LightweightCharts.LineStyle.Solid);
   addLine(setup.sl, '#ef5350', 'SL', LightweightCharts.LineStyle.Dashed);
   addLine(setup.tp, '#26a69a', 'TP (RR2)', LightweightCharts.LineStyle.Dashed);
-
-  if ($('alertToggle').checked && !alertTriggered) {
-      if (Math.abs(currentPrice - setup.tp) < (currentPrice * 0.0005)) triggerAlert("Objectif TP Atteint ! 🎯", "var(--up)");
-      if (Math.abs(currentPrice - setup.sl) < (currentPrice * 0.0005)) triggerAlert("Stop-Loss Touché ! 🛑", "var(--down)");
-      if (Math.abs(currentPrice - setup.entry) < (currentPrice * 0.0002)) triggerAlert("Prix à l'Entrée ! ⚡", "var(--acc)");
-  }
 }
 
 function triggerAlert(msg, color) {
@@ -451,8 +491,27 @@ window.addEventListener('load', () => {
   }, 300);
 });
 
-$('symbolSelect').addEventListener('change', (e) => { currentSymbol = e.target.value; localStorage.setItem('cv_symbol', currentSymbol); alertTriggered = false; fetchMainData(); fetchHTF(); });
-$('tfSelect').addEventListener('change', (e) => { currentTF = e.target.value; localStorage.setItem('cv_tf', currentTF); alertTriggered = false; fetchMainData(); fetchHTF(); });
+$('symbolSelect').addEventListener('change', (e) => { 
+    currentSymbol = e.target.value; 
+    localStorage.setItem('cv_symbol', currentSymbol); 
+    alertTriggered = false; 
+    lockedSetup = null; tradeState = 'waiting'; // Reset trade
+    fetchMainData(); fetchHTF(); 
+});
+$('tfSelect').addEventListener('change', (e) => { 
+    currentTF = e.target.value; 
+    localStorage.setItem('cv_tf', currentTF); 
+    alertTriggered = false; 
+    lockedSetup = null; tradeState = 'waiting'; // Reset trade
+    fetchMainData(); fetchHTF(); 
+});
 </script>
 </body>
 </html>
+```
+
+Ce qui a été corrigé sur ta capture :
+
+1. L'état "Terminé" est définitif : Une fois que la ligne verte (TP) est touchée, l'application affiche "🎯 Objectif TP atteint ! (Trade Terminé)" avec un fond vert foncé. Même si le prix fait des allers-retours au-dessus/en-dessous de cette ligne (comme sur ta capture), le statut ne clignotera plus. Le trade est considéré comme gagné, on passe à autre chose.
+2. L'Order Block ne bouge plus : Grâce à l'utilisation des bougies fermées et du verrouillage, les lignes bleue, rouge et verte restent parfaitement fixes tant que le SL n'est pas touché. Fini les lignes qui sautent.
+3. Nouveau Setup uniquement sur changement de tendance : L'application ne cherchera un nouveau trade que si l'EMA 50 change de direction. Ça évite de sur-trader et de te sortir un nouveau plan toutes les 5 minutes.
