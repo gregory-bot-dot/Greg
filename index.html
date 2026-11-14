@@ -1,373 +1,216 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision SMC</title>
-<style>
-  :root{
-    --bg:#0b0e14;--panel:#131722;--panel2:#1a1f2c;--panel3:#222836;
-    --line:#232c3d;--line2:#2f3a52;
-    --txt:#d1d4dc;--muted:#8b94a8;--dim:#5d6577;
-    --acc:#2962ff;--up:#26a69a;--down:#ef5350;
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
-  html,body{height:100%; margin:0; padding:0;}
-  body{
-    background:var(--bg); color:var(--txt); 
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    font-size:13px; -webkit-font-smoothing:antialiased; overflow-x: hidden;
-  }
-  
-  /* HEADER */
-  header{padding:10px; background:#0e1219; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;}
-  header h1{font-size:15px;margin:0;font-weight:700;}
-  header h1 span{color:var(--acc)}
-  
-  /* APP LAYOUT */
-  .app{display:flex; flex-direction:column; min-height:calc(100vh - 45px);}
-  @media(min-width:1024px){ .app{flex-direction:row; height:calc(100vh - 45px);} }
-  
-  /* ZONE GRAPHIQUE */
-  .chart-section{background:#05080c; display:flex; flex-direction:column; flex:1;}
-  .chart-wrap{position:relative; width:100%; max-height:40vh; display:flex; align-items:center; justify-content:center; overflow:auto;}
-  canvas{display:block; max-width:100%; height:auto;}
-  
-  /* OUTILS (Boutons sous le graphique) */
-  .toolbar{padding:10px; background:var(--panel); border-top:1px solid var(--line); border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
-  
-  .btn-label, button.btn {
-    border:none; border-radius:6px; padding:8px 12px; font-weight:600; font-size:12px; 
-    cursor:pointer; background:var(--panel2); color:var(--txt); text-align:center;
-  }
-  .btn-label{background:var(--acc); color:#fff;}
-  .btn-label:active, button.btn:active{opacity:0.8;}
-  
-  /* SAISIE DES PRIX */
-  .price-inputs{display:flex; gap:8px; padding:10px; background:var(--panel2); align-items:center; justify-content:center;}
-  .price-inputs label{font-size:11px; color:var(--muted);}
-  .price-inputs input{
-    width:80px; background:#0b0e14; border:1px solid var(--line2); color:#fff;
-    padding:8px; border-radius:4px; font-size:13px; font-family:monospace; text-align:center;
-  }
-  .price-inputs input:focus{outline:none; border-color:var(--acc);}
-  
-  /* RESULTATS (Onglets) */
-  .results-section{flex:1; background:var(--panel); display:flex; flex-direction:column;}
-  .tabs{display:flex; border-bottom:1px solid var(--line);}
-  .tab{flex:1; padding:12px; background:none; border:none; color:var(--muted); font-size:12px; font-weight:bold; cursor:pointer; border-bottom:2px solid transparent;}
-  .tab.active{color:var(--acc); border-bottom-color:var(--acc);}
-  
-  .content{padding:15px; overflow-y:auto; flex:1;}
-  .content > div{display:none;}
-  .content > div.active{display:block;}
-  
-  /* CARTES */
-  .kpi-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:15px;}
-  .kpi{background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:10px; border-left:3px solid var(--dim);}
-  .kpi.info{border-left-color:var(--acc)} .kpi.neu{border-left-color:var(--warn)}
-  .kpi small{display:block; color:var(--dim); font-size:10px; text-transform:uppercase;}
-  .kpi b{display:block; font-size:16px; margin-top:4px;}
-  
-  .setup{border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; background:var(--panel2);}
-  .setup.buy{border-color:rgba(38,166,154,.4); background:rgba(38,166,154,.05);}
-  .setup.sell{border-color:rgba(239,83,80,.4); background:rgba(239,83,80,.05);}
-  .setup-head{font-weight:bold; margin-bottom:10px;}
-  .setup.buy .setup-head{color:var(--up)} .setup.sell .setup-head{color:var(--down)}
-  .trade-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;}
-  .trade-cell{background:rgba(0,0,0,.2); border-radius:4px; padding:8px; border:1px solid var(--line); text-align:center;}
-  .trade-cell small{display:block; font-size:10px; color:var(--dim); margin-bottom:4px;}
-  .trade-cell b{font-family:monospace; font-size:13px;}
-  
-  .warnbox{background:rgba(255,152,0,.1); border:1px solid var(--warn); color:var(--warn); padding:10px; border-radius:6px; font-size:12px; margin:10px 0;}
-  input[type=file]{display:none;}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wedding Planner</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-red: #9e1b32;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #888888;
+            --accent-pink: #f43f5e;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        
+        body { background-color: #f5f5f5; display: flex; justify-content: center; }
+        
+        /* Simulation de l'écran de téléphone */
+        #app { width: 100%; max-width: 480px; height: 100vh; background-color: var(--bg-red); position: relative; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* En-tête */
+        header { text-align: center; padding: 20px; color: white; }
+        header h1 { font-size: 24px; font-weight: 500; }
+        header span { color: #fbd38d; font-weight: bold; }
+
+        /* Contenu principal */
+        main { flex: 1; background: var(--card-bg); border-radius: 20px 20px 0 0; overflow-y: auto; padding-bottom: 80px; }
+        
+        .page { display: none; padding: 20px; }
+        .page.active { display: block; }
+        .page-title { text-align: center; font-size: 18px; font-weight: bold; color: var(--text-main); margin-bottom: 20px; }
+
+        /* --- PAGE ACCUEIL --- */
+        .countdown-box { background: linear-gradient(135deg, #fbd38d, #f6ad55); border-radius: 15px; padding: 30px 20px; text-align: center; position: relative; margin-bottom: 20px; color: white; }
+        .heart { background: var(--accent-pink); padding: 15px; border-radius: 50% 50% 0 50%; display: inline-block; transform: rotate(45deg); margin-bottom: 15px; }
+        .heart i { transform: rotate(-45deg); font-size: 24px; }
+        .countdown-timer { font-size: 28px; font-weight: bold; margin: 10px 0; letter-spacing: 1px; }
+        .countdown-labels { display: flex; justify-content: center; gap: 15px; font-size: 12px; margin-top: -5px; }
+        .date-text { font-size: 14px; margin-top: 10px; }
+
+        .quick-links { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .quick-item { background: #f9f9f9; padding: 15px; border-radius: 10px; text-align: center; width: 23%; font-size: 12px; font-weight: 500; color: var(--text-main); }
+        .quick-item i { font-size: 20px; margin-bottom: 5px; display: block; color: var(--accent-pink); }
+
+        .progress-card { border: 1px solid #eee; border-radius: 10px; padding: 15px; margin-bottom: 15px; }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; font-weight: bold; }
+        .progress-bar { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--accent-green); width: 68%; }
+
+        /* --- PAGE INVITÉS --- */
+        .search-bar { background: #f5f5f5; padding: 10px 15px; border-radius: 8px; display: flex; align-items: center; margin-bottom: 15px; color: var(--text-muted); }
+        .search-bar input { border: none; background: transparent; margin-left: 10px; width: 100%; outline: none; }
+        .guest-list { list-style: none; }
+        .guest-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px; margin-right: 15px; }
+        .guest-info { flex: 1; }
+        .guest-name { font-weight: 500; font-size: 15px; color: var(--text-main); }
+        .guest-tags { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+        .guest-tags span { margin-right: 8px; }
+        .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+        .dot-green { background: var(--accent-green); }
+        .dot-orange { background: var(--accent-orange); }
+
+        /* --- BOUTON FLOTTANT --- */
+        .fab { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--accent-pink); color: white; border: none; padding: 12px 20px; border-radius: 25px; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(244, 63, 94, 0.3); z-index: 10; }
+        .fab i { font-size: 16px; }
+
+        /* --- BARRE DE NAVIGATION --- */
+        nav { position: absolute; bottom: 0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 10px 0 20px 0; border-top: 1px solid #eee; z-index: 20; }
+        .nav-item { text-align: center; color: var(--text-muted); font-size: 10px; cursor: pointer; }
+        .nav-item i { font-size: 20px; margin-bottom: 3px; display: block; }
+        .nav-item.active { color: var(--accent-pink); }
+    </style>
 </head>
 <body>
 
-<header>
-  <h1>Chart<span>Vision</span> SMC</h1>
-</header>
+<div id="app">
+    <header>
+        <h1>Tout votre mariage <br><span>dans une seule app</span></h1>
+    </header>
 
-<div class="app">
-  <!-- ZONE CENTRALE : GRAPHIQUE -->
-  <div class="chart-section">
-    <div class="chart-wrap" id="chartWrap">
-      <div id="emptyChart" style="color:var(--dim); text-align:center; padding:40px;">
-        Chargez une image pour<br>commencer l'analyse.
-      </div>
-      <div id="canvasInner" style="position:relative; display:none; line-height:0;">
-        <canvas id="cv"></canvas>
-      </div>
-    </div>
-    
-    <div class="toolbar">
-      <label class="btn-label" for="file">📸 Choisir Image</label>
-      <input type="file" id="file" accept="image/*">
-      <div style="margin-left:auto; font-size:11px; color:var(--dim);" id="statusTxt">Prêt</div>
-    </div>
+    <main>
+        <!-- ONGLET ACCUEIL -->
+        <div id="page-accueil" class="page active">
+            <div class="countdown-box">
+                <div class="heart"><i class="fas fa-heart"></i></div>
+                <h2>Marie & Jean</h2>
+                <div class="countdown-timer" id="timer">119 : 23 : 59 : 32</div>
+                <div class="countdown-labels">
+                    <span>jours</span><span>heures</span><span>min.</span><span>sec.</span>
+                </div>
+                <div class="date-text">Avant notre mariage<br><b>25/02/2027</b></div>
+            </div>
 
-    <!-- Saisie manuelle des prix (Remplace la calibration) -->
-    <div class="price-inputs">
-      <label>Prix Haut :</label>
-      <input type="number" id="pTop" step="any" placeholder="ex: 3892">
-      <label style="margin-left:10px;">Prix Bas :</label>
-      <input type="number" id="pBot" step="any" placeholder="ex: 3868">
-    </div>
-  </div>
+            <div class="quick-links">
+                <div class="quick-item" onclick="changeTab('taches')"><i class="fas fa-clipboard-list"></i>Tâches</div>
+                <div class="quick-item" onclick="changeTab('budget')"><i class="fas fa-wallet"></i>Budget</div>
+                <div class="quick-item" onclick="changeTab('invites')"><i class="fas fa-users"></i>Invités</div>
+                <div class="quick-item" onclick="changeTab('prestataires')"><i class="fas fa-briefcase"></i>Prestat.</div>
+            </div>
 
-  <!-- ZONE DROITE : RESULTATS -->
-  <div class="results-section">
-    <div class="tabs">
-      <button class="tab active" onclick="showTab('signal')">Setup</button>
-      <button class="tab" onclick="showTab('smc')">SMC</button>
-    </div>
-    <div class="content">
-      <div id="tab-signal" class="active"><div class="warnbox">En attente d'image...</div></div>
-      <div id="tab-smc"><div class="warnbox">En attente d'image...</div></div>
-    </div>
-  </div>
+            <div class="progress-card">
+                <div class="progress-header"><span>TÂCHES</span><span>68,75%</span></div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 68.75%;"></div></div>
+            </div>
+            <div class="progress-card">
+                <div class="progress-header"><span>BUDGET (Payé)</span><span>43%</span></div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 43%; background: var(--accent-pink);"></div></div>
+            </div>
+        </div>
+
+        <!-- ONGLET INVITÉS -->
+        <div id="page-invites" class="page">
+            <div class="page-title">Invités</div>
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Rechercher des invités">
+            </div>
+            <ul class="guest-list">
+                <li class="guest-item">
+                    <div class="avatar" style="background: #0d9488;">BP</div>
+                    <div class="guest-info">
+                        <div class="guest-name">Bernard Passereau <span style="float:right; color:#888; font-weight:normal;">+1</span></div>
+                        <div class="guest-tags"><span><span class="dot dot-green"></span>Mariage</span><span><span class="dot dot-green"></span>Enterrement de vie...</span></div>
+                    </div>
+                </li>
+                <li class="guest-item">
+                    <div class="avatar" style="background: #ea580c;">CS</div>
+                    <div class="guest-info">
+                        <div class="guest-name">Chantal Suchet</div>
+                        <div class="guest-tags"><span><span class="dot dot-green"></span>Mariage</span><span><span class="dot dot-green"></span>Enterrement de vie...</span></div>
+                    </div>
+                </li>
+                <li class="guest-item">
+                    <div class="avatar" style="background: #eab308;">C</div>
+                    <div class="guest-info">
+                        <div class="guest-name">Christine</div>
+                        <div class="guest-tags"><span><span class="dot dot-green"></span>Mariage</span><span><span class="dot dot-green"></span>Enterrement de vie...</span></div>
+                    </div>
+                </li>
+                <li class="guest-item">
+                    <div class="avatar" style="background: #db2777;">GA</div>
+                    <div class="guest-info">
+                        <div class="guest-name">Gérard Arras</div>
+                        <div class="guest-tags"><span><span class="dot dot-orange"></span>Mariage</span><span><span class="dot dot-green"></span>Enterrement de vie...</span></div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- ONGLETS FACTICES (Pour le design) -->
+        <div id="page-taches" class="page"><div class="page-title">Tâches</div><p style="text-align:center;">Checklist ici</p></div>
+        <div id="page-budget" class="page"><div class="page-title">Budget</div><p style="text-align:center;">Gestion du budget ici</p></div>
+        <div id="page-prestataires" class="page"><div class="page-title">Prestataires</div><p style="text-align:center;">Liste des prestataires ici</p></div>
+    </main>
+
+    <!-- Bouton Ajouter (change selon l'onglet) -->
+    <button class="fab" id="add-btn"><i class="fas fa-plus"></i> AJOUTER UN INVITÉ</button>
+
+    <!-- Navigation en bas -->
+    <nav>
+        <div class="nav-item active" onclick="changeTab('accueil')"><i class="fas fa-home"></i>Accueil</div>
+        <div class="nav-item" onclick="changeTab('taches')"><i class="fas fa-clipboard-list"></i>Tâches</div>
+        <div class="nav-item" onclick="changeTab('budget')"><i class="fas fa-wallet"></i>Budget</div>
+        <div class="nav-item" onclick="changeTab('invites')"><i class="fas fa-users"></i>Invités</div>
+        <div class="nav-item" onclick="changeTab('prestataires')"><i class="fas fa-briefcase"></i>Prestat.</div>
+    </nav>
 </div>
 
 <script>
-const $ = id => document.getElementById(id);
-const TV_GREEN = [[38,166,154],[8,153,129],[76,175,80],[0,150,136]];
-const TV_RED   = [[239,83,80],[242,54,69],[244,67,54],[255,82,82]];
+    // Gestion des onglets
+    function changeTab(tabId) {
+        // Cacher toutes les pages
+        document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+        // Afficher la page demandée
+        document.getElementById('page-' + tabId).classList.add('active');
+        
+        // Mettre à jour la navigation
+        document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+        event.currentTarget.classList.add('active');
 
-const S = {
-  cv:$('cv'), ctx:null, loaded:false, candles:[],
-  priceTop:null, priceBot:null, setups:null
-};
-S.ctx = S.cv.getContext('2d', {willReadFrequently:true, alpha: false});
-
-// Navigation Onglets (Ultra basique et fiable)
-function showTab(id) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.content > div').forEach(d => d.classList.remove('active'));
-  
-  if(id === 'signal') document.querySelectorAll('.tab')[0].classList.add('active');
-  if(id === 'smc') document.querySelectorAll('.tab')[1].classList.add('active');
-  
-  $('tab-' + id).classList.add('active');
-}
-
-// Conversion Y -> Prix
-function yToPrice(y){
-  const top = S.priceTop, bot = S.priceBot;
-  if(top === null || bot === null || !S.cv.height) return null;
-  // y=0 est en haut de l'image, y=height est en bas
-  const rel = y / S.cv.height;
-  return top + (bot - top) * rel;
-}
-function fmtPrice(p){
-  if(p === null || !isFinite(p)) return '—';
-  return p.toLocaleString('fr-FR', {minimumFractionDigits:3, maximumFractionDigits:3});
-}
-
-/* CHARGEMENT IMAGE */
-$('file').addEventListener('change', async e => {
-  const file = e.target.files[0];
-  if(!file) return;
-  $('statusTxt').textContent = "Chargement...";
-  
-  const url = URL.createObjectURL(file);
-  const img = new Image();
-  
-  img.onload = () => {
-    try {
-      const MAX = 1000; // Réduit pour mobile
-      const k = Math.min(1, MAX/Math.max(img.naturalWidth, img.naturalHeight));
-      const w = Math.round(img.naturalWidth*k), h = Math.round(img.naturalHeight*k);
-      
-      S.cv.width = w; S.cv.height = h;
-      S.ctx.fillStyle = "#000000"; 
-      S.ctx.fillRect(0, 0, w, h);
-      S.ctx.drawImage(img, 0, 0, w, h);
-      
-      S.loaded = true;
-      $('emptyChart').style.display = 'none';
-      $('canvasInner').style.display = 'block';
-      
-      runAnalysis();
-    } catch(err) {
-      alert("Erreur de lecture.");
-    } finally {
-      URL.revokeObjectURL(url);
+        // Changer le texte du bouton d'ajout selon l'onglet
+        const fab = document.getElementById('add-btn');
+        if(tabId === 'invites') fab.innerHTML = '<i class="fas fa-plus"></i> AJOUTER UN INVITÉ';
+        if(tabId === 'budget') fab.innerHTML = '<i class="fas fa-plus"></i> AJOUTER UNE DÉPENSE';
+        if(tabId === 'taches') fab.innerHTML = '<i class="fas fa-plus"></i> AJOUTER UNE TÂCHE';
+        if(tabId === 'prestataires') fab.innerHTML = '<i class="fas fa-plus"></i> AJOUTER UN PRESTATAIRE';
+        if(tabId === 'accueil') fab.style.display = 'none'; else fab.style.display = 'flex';
     }
-  };
-  img.src = url;
-});
 
-/* ALGORITHME D'ANALYSE */
-function colorDist(a, b){ return Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])+Math.abs(a[2]-b[2]); }
-function classifyPixel(r, g, b, a){
-  if(a < 50) return 0;
-  const p = [r,g,b];
-  for(const c of TV_GREEN) if(colorDist(p, c) < 110) return 1;
-  for(const c of TV_RED)   if(colorDist(p, c) < 110) return 2;
-  return 0;
-}
+    // Compte à rebours simple
+    function updateTimer() {
+        const targetDate = new Date("Feb 25, 2027 12:00:00").getTime();
+        const now = new Date().getTime();
+        const distance = targetDate - now;
 
-function runAnalysis(){
-  $('statusTxt').textContent = "Analyse...";
-  try{
-    const W = S.cv.width, H = S.cv.height;
-    const data = S.ctx.getImageData(0, 0, W, H).data;
-    const cls = new Uint8Array(W * H);
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        document.getElementById("timer").innerHTML = `${days} : ${hours} : ${minutes} : ${seconds}`;
+    }
+    setInterval(updateTimer, 1000);
     
-    // Ignorer 5% en haut et 15% en bas (pour éviter l'UI TradingView)
-    const yStart = Math.floor(H * 0.05);
-    const yEnd = Math.floor(H * 0.85);
-
-    for(let y = yStart; y < yEnd; y++){
-      for(let x = 0; x < W; x++){
-        const i = (y*W + x) * 4;
-        cls[y*W + x] = classifyPixel(data[i], data[i+1], data[i+2], data[i+3]);
-      }
-    }
-
-    const colAct = new Int32Array(W);
-    for(let x = 0; x < W; x++){
-      let cnt = 0;
-      for(let y = yStart; y < yEnd; y++) if(cls[y*W+x]) cnt++;
-      colAct[x] = cnt;
-    }
-
-    const candles = [];
-    let x = 0;
-    while(x < W){
-      if(colAct[x] < 2){ x++; continue; }
-      const x1 = x;
-      while(x < W && colAct[x] >= 2) x++;
-      const x2 = x - 1;
-      const width = x2 - x1 + 1;
-      if(width > 30) continue;
-
-      let yTop = yEnd, yBot = yStart;
-      for(let yy = yStart; yy < yEnd; yy++){
-        for(let xx = x1; xx <= x2; xx++){
-          if(cls[yy*W+xx]){ if(yy<yTop) yTop=yy; if(yy>yBot) yBot=yy; break; }
-        }
-      }
-      if(yBot < 0 || yBot - yTop < 2) continue;
-
-      candles.push({
-        x:(x1+x2)/2, x1, x2, high:yTop, low:yBot, mid:(yTop+yBot)/2
-      });
-    }
-
-    if(candles.length < 5){
-      $('statusTxt').textContent = "Échec";
-      $('tab-signal').innerHTML = '<div class="warnbox">Pas assez de bougies détectées.</div>';
-      return;
-    }
-
-    S.candles = candles;
-    calculateSetups();
-    $('statusTxt').textContent = `OK · ${candles.length} bougies`;
-  }catch(err){
-    console.error(err);
-    $('statusTxt').textContent = "Erreur";
-  }
-}
-
-/* MISE A JOUR DES SETUPS QUAND LES PRIX CHANGENT */
-$('pTop').addEventListener('input', calculateSetups);
-$('pBot').addEventListener('input', calculateSetups);
-
-function calculateSetups(){
-  if(!S.loaded || S.candles.length < 5) return;
-  
-  const pt = parseFloat($('pTop').value);
-  const pb = parseFloat($('pBot').value);
-  
-  // Mise à jour des prix de conversion
-  S.priceTop = isNaN(pt) ? null : pt;
-  S.priceBot = isNaN(pb) ? null : pb;
-
-  const candles = S.candles;
-  
-  // Détection simplifiée des Swings (Sommets/Creux)
-  const swings = [];
-  for(let i = 2; i < candles.length - 2; i++){
-    if(candles[i].high < candles[i-1].high && candles[i].high < candles[i+1].high) 
-      swings.push({i, x:candles[i].x, y:candles[i].high, type:'H'});
-    if(candles[i].low > candles[i-1].low && candles[i].low > candles[i+1].low) 
-      swings.push({i, x:candles[i].x, y:candles[i].low, type:'L'});
-  }
-
-  const lastCandle = candles[candles.length - 1];
-  const lastSwingHigh = swings.filter(s => s.type === 'H').slice(-1)[0];
-  const lastSwingLow = swings.filter(s => s.type === 'L').slice(-1)[0];
-  
-  const isUptrend = lastSwingHigh && lastSwingLow && lastSwingHigh.i > lastSwingLow.i;
-
-  // Calcul des prix (si les champs sont remplis) ou en % (si vides)
-  const entryLongY = lastSwingLow ? lastSwingLow.y + 5 : lastCandle.mid;
-  const slLongY = lastSwingLow ? lastSwingLow.y + 15 : lastCandle.mid;
-  const tpLongY = lastSwingHigh ? lastSwingHigh.y - 10 : lastCandle.mid;
-  
-  const entryShortY = lastSwingHigh ? lastSwingHigh.y - 5 : lastCandle.mid;
-  const slShortY = lastSwingHigh ? lastSwingHigh.y - 15 : lastCandle.mid;
-  const tpShortY = lastSwingLow ? lastSwingLow.y + 10 : lastCandle.mid;
-
-  S.setups = {
-    bias: isUptrend ? 'up' : 'down',
-    currentPrice: yToPrice(lastCandle.mid),
-    long: {
-      favored: isUptrend,
-      entry: yToPrice(entryLongY), sl: yToPrice(slLongY), tp1: yToPrice(tpLongY)
-    },
-    short: {
-      favored: !isUptrend,
-      entry: yToPrice(entryShortY), sl: yToPrice(slShortY), tp1: yToPrice(tpShortY)
-    }
-  };
-
-  renderUI();
-}
-
-/* AFFICHAGE DES RESULTATS */
-function renderUI(){
-  const st = S.setups;
-  if(!st) return;
-  
-  const curStr = st.currentPrice !== null ? fmtPrice(st.currentPrice) : '—';
-
-  $('tab-signal').innerHTML = `
-    <div class="kpi-grid">
-      <div class="kpi info"><small>Prix actuel (estimé)</small><b>${curStr}</b></div>
-      <div class="kpi neu"><small>Tendance</small><b>${st.bias === 'up' ? 'Haussière' : 'Baissière'}</b></div>
-    </div>
-    
-    <div class="setup buy" style="${st.long.favored ? 'border-width:2px' : 'opacity:0.5'}">
-      <div class="setup-head">🟢 Setup ACHAT ${st.long.favored ? '⭐' : ''}</div>
-      <div class="trade-grid">
-        <div class="trade-cell"><small>Entrée</small><b>${st.long.entry !== null ? fmtPrice(st.long.entry) : '—'}</b></div>
-        <div class="trade-cell"><small>Stop</small><b>${st.long.sl !== null ? fmtPrice(st.long.sl) : '—'}</b></div>
-        <div class="trade-cell"><small>TP1</small><b>${st.long.tp1 !== null ? fmtPrice(st.long.tp1) : '—'}</b></div>
-      </div>
-    </div>
-
-    <div class="setup sell" style="${st.short.favored ? 'border-width:2px' : 'opacity:0.5'}">
-      <div class="setup-head">🔴 Setup VENTE ${st.short.favored ? '⭐' : ''}</div>
-      <div class="trade-grid">
-        <div class="trade-cell"><small>Entrée</small><b>${st.short.entry !== null ? fmtPrice(st.short.entry) : '—'}</b></div>
-        <div class="trade-cell"><small>Stop</small><b>${st.short.sl !== null ? fmtPrice(st.short.sl) : '—'}</b></div>
-        <div class="trade-cell"><small>TP1</small><b>${st.short.tp1 !== null ? fmtPrice(st.short.tp1) : '—'}</b></div>
-      </div>
-    </div>
-
-    ${!S.priceTop ? '<div class="warnbox">💡 <b>Astuce :</b> Remplissez les champs "Prix Haut" et "Prix Bas" en lisant l\'axe de droite de votre graphique pour convertir les niveaux en vrais prix.</div>' : ''}
-  `;
-
-  $('tab-smc').innerHTML = `
-    <h3 style="margin-top:0;">Structure de marché</h3>
-    <p>La tendance de fond détectée sur cette image est <b>${st.bias === 'up' ? 'haussière' : 'baissière'}</b>.</p>
-    <p>L'algorithme a identifié ${S.candles.length} bougies et repéré les derniers sommets et creux pour calculer les Order Blocks et les zones de liquidité.</p>
-    <p>Le setup privilégié est à l'<b>${st.bias === 'up' ? 'ACHAT' : 'VENTE'}</b> sur un retour de prix.</p>
-  `;
-}
+    // Cacher le bouton au démarrage sur l'accueil
+    document.getElementById('add-btn').style.display = 'none';
 </script>
+
 </body>
 </html>
