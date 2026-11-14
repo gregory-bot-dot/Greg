@@ -10,7 +10,6 @@
     --line:#232c3d;--line2:#2f3a52;
     --txt:#d1d4dc;--muted:#8b94a8;--dim:#5d6577;
     --acc:#2962ff;--up:#26a69a;--down:#ef5350;--warn:#ff9800;--info:#ab47bc;
-    --ob:#f9a825;--fvg:#26c6da;--liq:#ab47bc;--bos:#66bb6a;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
   html,body{height:100%; margin:0; padding:0;}
@@ -188,7 +187,7 @@
       <label class="drop" for="file">
         📸 Appuyez ici pour choisir une image<br><span style="font-size:10px; opacity:0.7">(ou glissez-déposez sur PC)</span>
       </label>
-      <input type="file" id="file" accept="image/*">
+      <input type="file" id="file" accept="image/png, image/jpeg, image/webp">
       <button class="btn ghost" id="btnClear" disabled>Effacer</button>
     </div>
 
@@ -258,7 +257,6 @@ const ASSETS = {
   forex:{name:'Forex',dec:3,unit:''}, crypto:{name:'Crypto',dec:2,unit:''},
   stocks:{name:'Action',dec:2,unit:'$'}, indices:{name:'Indice',dec:1,unit:'pts'}
 };
-// Couleurs TradingView (accepte les variations de teinte)
 const TV_GREEN = [[38,166,154],[8,153,129],[76,175,80],[0,150,136]];
 const TV_RED   = [[239,83,80],[242,54,69],[244,67,54],[255,82,82]];
 
@@ -269,7 +267,7 @@ const S = {
   priceCal:null, mouse:null, layout:null,
   calibMode:false, calibPoints:[]
 };
-S.ctx = S.cv.getContext('2d', {willReadFrequently:true});
+S.ctx = S.cv.getContext('2d', {willReadFrequently:true, alpha: false});
 S.octx = S.ov.getContext('2d');
 
 function profile(){ return ASSETS[$('assetType').value] || ASSETS.forex; }
@@ -296,45 +294,76 @@ function setStatus(t, spin){
   $('statusTxt').innerHTML = (spin ? '<span class="spin"></span>' : '') + t;
 }
 
-/* CHARGEMENT IMAGE */
-async function handleFile(file){
-  if(!file || !file.type.startsWith('image/')) return;
-  setStatus('Chargement…', true);
-  try{
-    const url = await new Promise((res, rej) => {
-      const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file);
-    });
-    const img = await new Promise((res, rej) => {
-      const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url;
-    });
-    
-    // Optimisation mobile : max 1200px pour eviter les crashs memoire
-    const MAX = 1200;
-    const k = Math.min(1, MAX/Math.max(img.naturalWidth, img.naturalHeight));
-    const w = Math.round(img.naturalWidth*k), h = Math.round(img.naturalHeight*k);
-    
-    S.cv.width = w; S.cv.height = h;
-    S.ov.width = w; S.ov.height = h;
-    S.ctx.drawImage(img, 0, 0, w, h);
-    S.imageDataURL = S.cv.toDataURL('image/jpeg', 0.9);
+/* CHARGEMENT IMAGE OPTIMISÉ POUR MOBILE */
+$('file').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  
+  if (!file.type.match('image.*')) {
+    alert("Le fichier sélectionné n'est pas une image.");
+    return;
+  }
 
-    S.loaded = true; S.mouse = null; S.priceCal = null; S.calibMode = false; S.calibPoints = [];
-    
-    $('emptyChart').style.display = 'none';
-    $('canvasInner').style.display = 'block';
-    $('btnClear').disabled = false; $('btnClick').disabled = false; $('btnExport').disabled = false;
-    $('calibStatus').innerHTML = "Sans calibration : % de hauteur.<br><b>Cliquez sur Calibrer pour des prix exacts.</b>";
-    
-    runAnalysis();
-  }catch(err){ console.error(err); setStatus('Erreur chargement'); }
-}
+  setStatus('Lecture…', true);
+  $('emptyChart').innerHTML = "Chargement de l'image en cours...";
 
-/* ALGORITHME D'ANALYSE AMÉLIORÉ */
+  // Utilisation de ObjectURL (beaucoup plus léger que FileReader pour les grosses photos)
+  const url = URL.createObjectURL(file);
+
+  const img = new Image();
+  img.onload = () => {
+    try {
+      // Réduction drastique pour éviter le crash mémoire sur mobile (max 1000px)
+      const MAX = 1000;
+      const k = Math.min(1, MAX/Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth*k), h = Math.round(img.naturalHeight*k);
+      
+      S.cv.width = w; S.cv.height = h;
+      S.ov.width = w; S.ov.height = h;
+      
+      // Remplir le fond en noir avant de dessiner (évite les problèmes de transparence)
+      S.ctx.fillStyle = "#000000";
+      S.ctx.fillRect(0, 0, w, h);
+      
+      S.ctx.drawImage(img, 0, 0, w, h);
+      
+      // On refait un toDataURL mais en format léger (pour l'export éventuel)
+      try {
+        S.imageDataURL = S.cv.toDataURL('image/jpeg', 0.8);
+      } catch(e) {
+        console.warn("Impossible de générer la DataURL (sécurité navigateur)");
+      }
+
+      S.loaded = true; S.mouse = null; S.priceCal = null; S.calibMode = false; S.calibPoints = [];
+      
+      $('emptyChart').style.display = 'none';
+      $('canvasInner').style.display = 'block';
+      $('btnClear').disabled = false; $('btnClick').disabled = false; $('btnExport').disabled = false;
+      $('calibStatus').innerHTML = "Sans calibration : % de hauteur.<br><b>Cliquez sur Calibrer pour des prix exacts.</b>";
+      
+      runAnalysis();
+    } catch(err) {
+      alert("Erreur lors du dessin sur le canvas : " + err.message);
+      setStatus('Erreur');
+    } finally {
+      URL.revokeObjectURL(url); // Libère la mémoire
+    }
+  };
+
+  img.onerror = () => {
+    alert("Le navigateur n'a pas pu lire ce fichier image. Essayez de le convertir en JPG ou PNG standard.");
+    setStatus('Erreur format');
+    URL.revokeObjectURL(url);
+  };
+
+  img.src = url;
+});
+
+/* ALGORITHME D'ANALYSE */
 function colorDist(a, b){ return Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])+Math.abs(a[2]-b[2]); }
 function classifyPixel(r, g, b, a){
-  if(a < 50) return 0; // Ignore la transparence
+  if(a < 50) return 0;
   const p = [r,g,b];
-  // Tolérance augmentée à 110 pour attraper les bougies sur fond clair
   for(const c of TV_GREEN) if(colorDist(p, c) < 110) return 1;
   for(const c of TV_RED)   if(colorDist(p, c) < 110) return 2;
   return 0;
@@ -348,7 +377,7 @@ function runAnalysis(){
     const data = S.ctx.getImageData(0, 0, W, H).data;
     const cls = new Uint8Array(W * H);
     
-    // On ignore 5% du haut et 15% du bas (watermark TradingView et axes de temps)
+    // On ignore 5% du haut et 15% du bas
     const yStart = Math.floor(H * 0.05);
     const yEnd = Math.floor(H * 0.85);
 
@@ -369,15 +398,12 @@ function runAnalysis(){
     const candles = [];
     let x = 0;
     while(x < W){
-      // Si la colonne a au moins 2 pixels colorés, on considère que c'est une bougie
       if(colAct[x] < 2){ x++; continue; }
       const x1 = x;
       while(x < W && colAct[x] >= 2) x++;
       const x2 = x - 1;
       const width = x2 - x1 + 1;
-      
-      // Filtrer les faux positifs (lignes horizontales très larges ou texte)
-      if(width > 30) continue; 
+      if(width > 30) continue; // Ignore les grandes lignes
 
       let yTop = yEnd, yBot = yStart;
       for(let yy = yStart; yy < yEnd; yy++){
@@ -403,12 +429,11 @@ function runAnalysis(){
     }
 
     if(candles.length < 5){
-      setStatus('Analyse échouée');
-      $('tabSignal').innerHTML = '<div class="warnbox">Pas assez de bougies détectées. Assurez-vous que l\'image n\'est pas floue et que le graphique est bien visible.</div>';
+      setStatus('Échec analyse');
+      $('tabSignal').innerHTML = '<div class="warnbox">Pas assez de bougies détectées. Assurez-vous que les bougies sont bien visibles (pas trop petites, ni floues).</div>';
       return;
     }
 
-    // Détection simplifiée des Swings (Sommets et Creux)
     const swings = [];
     for(let i = 2; i < candles.length - 2; i++){
       if(candles[i].high < candles[i-1].high && candles[i].high < candles[i+1].high) swings.push({i, x:candles[i].x, y:candles[i].high, type:'H'});
@@ -422,11 +447,9 @@ function runAnalysis(){
       maxY: Math.max(...candles.map(c => c.low))
     };
 
-    // Calcul des setups SMC simplifiés
     const lastCandle = candles[candles.length - 1];
     const lastSwingHigh = swings.filter(s => s.type === 'H').slice(-1)[0];
     const lastSwingLow = swings.filter(s => s.type === 'L').slice(-1)[0];
-    
     const isUptrend = lastSwingHigh && lastSwingLow && lastSwingHigh.i > lastSwingLow.i;
 
     S.smc = {
@@ -439,18 +462,18 @@ function runAnalysis(){
       profile: profile(),
       long: { 
         favored: isUptrend, 
-        entry: isUptrend ? yToPrice(lastSwingLow.y + 5) : null, 
-        sl: isUptrend ? yToPrice(lastSwingLow.y + 15) : null, 
-        tp1: isUptrend ? yToPrice(lastSwingHigh.y - 10) : null,
+        entry: isUptrend && lastSwingLow ? yToPrice(lastSwingLow.y + 5) : null, 
+        sl: isUptrend && lastSwingLow ? yToPrice(lastSwingLow.y + 15) : null, 
+        tp1: isUptrend && lastSwingHigh ? yToPrice(lastSwingHigh.y - 10) : null,
         entryY: lastSwingLow ? lastSwingLow.y + 5 : lastCandle.mid,
         slY: lastSwingLow ? lastSwingLow.y + 15 : lastCandle.mid,
         tp1Y: lastSwingHigh ? lastSwingHigh.y - 10 : lastCandle.mid
       },
       short: { 
         favored: !isUptrend, 
-        entry: !isUptrend ? yToPrice(lastSwingHigh.y - 5) : null, 
-        sl: !isUptrend ? yToPrice(lastSwingHigh.y - 15) : null, 
-        tp1: !isUptrend ? yToPrice(lastSwingLow.y + 10) : null,
+        entry: !isUptrend && lastSwingHigh ? yToPrice(lastSwingHigh.y - 5) : null, 
+        sl: !isUptrend && lastSwingHigh ? yToPrice(lastSwingHigh.y - 15) : null, 
+        tp1: !isUptrend && lastSwingLow ? yToPrice(lastSwingLow.y + 10) : null,
         entryY: lastSwingHigh ? lastSwingHigh.y - 5 : lastCandle.mid,
         slY: lastSwingHigh ? lastSwingHigh.y - 15 : lastCandle.mid,
         tp1Y: lastSwingLow ? lastSwingLow.y + 10 : lastCandle.mid
@@ -463,7 +486,7 @@ function runAnalysis(){
   }catch(err){
     console.error(err);
     setStatus('Erreur');
-    $('tabSignal').innerHTML = `<div class="warnbox">Erreur d'analyse. Vérifiez la qualité de l'image.</div>`;
+    $('tabSignal').innerHTML = `<div class="warnbox">Erreur de calcul : ${err.message}</div>`;
   }
 }
 
@@ -504,7 +527,6 @@ function drawOverlay(){
   const o = S.octx, W = S.ov.width, H = S.ov.height;
   o.clearRect(0, 0, W, H);
   
-  // Dessin des setups
   if($('showEntry').checked && S.setups){
     const s = S.setups.long.favored ? S.setups.long : S.setups.short;
     const drawLine = (y, color, label) => {
@@ -519,7 +541,6 @@ function drawOverlay(){
     if(s.tp1Y) drawLine(s.tp1Y, '#26a69a', 'TP1');
   }
 
-  // Dessin Calibration
   if(S.calibMode){
     if(S.mouse){
       o.strokeStyle = 'rgba(41,98,255,.8)'; o.lineWidth = 1;
@@ -550,20 +571,17 @@ function cancelClickCalibration(){
   drawOverlay();
 }
 
-// Interaction avec le canvas
 const handleChartInteraction = (clientX, clientY) => {
   if(!S.calibMode) return;
   const r = S.ov.getBoundingClientRect();
   const y = (clientY - r.top) * (S.ov.height / r.height);
   
-  // Afficher la boite de saisie
   const box = $('calibInputBox');
   const rect = $('chartWrap').getBoundingClientRect();
   
   let left = clientX - rect.left;
   let top = clientY - rect.top;
   
-  // Garder la boite dans l'écran
   box.style.left = Math.max(110, Math.min(left, rect.width - 110)) + 'px';
   box.style.top = Math.max(60, top) + 'px';
   box.style.display = 'block';
@@ -607,15 +625,13 @@ window.submitCalibPrice = function(){
     };
     $('calibStatus').innerHTML = `<span style="color:var(--up)">✓ Calibré : ${p1.price} & ${p2.price}</span>`;
     cancelClickCalibration();
-    runAnalysis(); // Relancer les calculs avec les vrais prix
+    runAnalysis(); 
   }
 };
 
 window.cancelCalibPrice = function(){ $('calibInputBox').style.display = 'none'; };
 
 /* ÉVÉNEMENTS GLOBAUX */
-$('file').addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
-
 $('btnClick').addEventListener('click', () => {
   if(S.calibMode) cancelClickCalibration(); else startClickCalibration();
 });
@@ -634,7 +650,6 @@ $('btnClear').addEventListener('click', () => {
 
 $('showEntry').addEventListener('change', drawOverlay);
 
-// Gestion des onglets
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
