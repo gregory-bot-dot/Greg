@@ -1,17 +1,4 @@
-C'est une remarque très juste. Sur ta capture, on voit que le prix est à 64056.03 et le TP à 64061.58. Le prix a touché le TP, puis il est remonté de quelques centimes.
 
-Le problème, c'est que l'application recalcule tout toutes les 5 secondes. Si le prix bouge de 1 ou 2 dollars, l'algorithme peut détecter un nouvel Order Block, ce qui fait sauter les lignes d'un coup. De plus, le statut "Objectif atteint" peut clignoter si le prix repasse juste en dessous.
-
-Pour un trading au millimètre, on ne peut pas travailler dans ce "bruit". J'ai donc verrouillé la logique :
-
-1. L'Order Block est figé : Dès qu'un setup est validé, les lignes bleues (Entrée), rouges (SL) et vertes (TP) ne bougent plus. Elles restent ancrées sur le graphique.
-2. Ignorer la bougie en cours : L'algorithme ne cherche plus d'Order Block sur la bougie en train de se former (qui bouge toutes les secondes). Il attend qu'elle soit clôturée pour être sûr que la structure est réelle.
-3. Statut définitif : Si le prix touche le TP ou le SL, le trade est marqué comme "Terminé" (Objectif atteint ou Invalidé). Le statut ne clignotera plus même si le prix fait des aller-retours autour de la ligne.
-4. Recherche du prochain trade : L'application ne cherchera un nouveau trade que si tu changes de timeframe, ou si la tendance s'inverse complètement (l'EMA 50 change de sens).
-
-Voici le code avec cette logique de "verrouillage" (State Machine) :
-
-```html
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -508,10 +495,3 @@ $('tfSelect').addEventListener('change', (e) => {
 </script>
 </body>
 </html>
-```
-
-Ce qui a été corrigé sur ta capture :
-
-1. L'état "Terminé" est définitif : Une fois que la ligne verte (TP) est touchée, l'application affiche "🎯 Objectif TP atteint ! (Trade Terminé)" avec un fond vert foncé. Même si le prix fait des allers-retours au-dessus/en-dessous de cette ligne (comme sur ta capture), le statut ne clignotera plus. Le trade est considéré comme gagné, on passe à autre chose.
-2. L'Order Block ne bouge plus : Grâce à l'utilisation des bougies fermées et du verrouillage, les lignes bleue, rouge et verte restent parfaitement fixes tant que le SL n'est pas touché. Fini les lignes qui sautent.
-3. Nouveau Setup uniquement sur changement de tendance : L'application ne cherchera un nouveau trade que si l'EMA 50 change de direction. Ça évite de sur-trader et de te sortir un nouveau plan toutes les 5 minutes.
