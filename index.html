@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — Locked Setup</title>
+<title>ChartVision Pro — Patience</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -50,25 +49,25 @@
   .status-entry { background: rgba(41,98,255,0.2); color: var(--acc); border-left: 4px solid var(--acc); }
   .status-progress { background: rgba(38,166,154,0.15); color: var(--up); }
   .status-invalid { background: rgba(239,83,80,0.15); color: var(--down); }
-  .status-confluence { background: rgba(156,39,176,0.2); color: #e1bee7; border-left: 4px solid #9c27b0; }
   .status-done { background: rgba(38,166,154,0.3); color: #fff; border-left: 4px solid var(--up); }
+  .status-cooldown { background: rgba(139,148,168,0.15); color: var(--muted); border-left: 4px solid var(--muted); }
 
   .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;}
   
-  .setup{padding:12px 15px; border-bottom:1px solid var(--line); transition: 0.3s;}
-  .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.08) 0%, transparent 100%);}
-  .setup.sell{background:linear-gradient(180deg, rgba(239,83,80,0.08) 0%, transparent 100%);}
-  .setup.inactive { opacity: 0.3; filter: grayscale(1); }
+  /* Un seul setup affiché */
+  .setup{padding:15px; border-bottom:1px solid var(--line); transition: 0.3s;}
+  .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.1) 0%, transparent 100%); border-left: 4px solid var(--up);}
+  .setup.sell{background:linear-gradient(180deg, rgba(239,83,80,0.1) 0%, transparent 100%); border-left: 4px solid var(--down);}
   
-  .setup-title{font-weight:bold; font-size:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;}
+  .setup-title{font-weight:bold; font-size:15px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;}
   .setup.buy .setup-title{color:var(--up)} .setup.sell .setup-title{color:var(--down)}
   
-  .trade-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px;}
-  .cell{background:rgba(0,0,0,0.2); padding:8px; border-radius:4px; border:1px solid var(--line);}
+  .trade-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .cell{background:rgba(0,0,0,0.3); padding:10px; border-radius:4px; border:1px solid var(--line);}
   .cell small{display:block; color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:2px;}
-  .cell b{font-family:monospace; font-size:13px; color:#fff;}
-  .cell.precision { border-color: var(--acc); background: rgba(41,98,255,0.1); }
-  .cell.precision b { color: var(--acc); }
+  .cell b{font-family:monospace; font-size:14px; color:#fff;}
+  .cell.precision { border-color: var(--acc); background: rgba(41,98,255,0.15); }
+  .cell.precision b { color: var(--acc); font-size:15px;}
 
   .live-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--up); margin-right:6px; animation:pulse 1.5s infinite;}
   @keyframes pulse{ 0% { box-shadow: 0 0 0 0 rgba(38,166,154,0.7); } 70% { box-shadow: 0 0 0 6px rgba(38,166,154,0); } 100% { box-shadow: 0 0 0 0 rgba(38,166,154,0); } }
@@ -111,7 +110,7 @@
     <div id="tradeStatus" class="status-wait">Calcul du statut...</div>
 
     <div class="panel-header">
-      <div><span class="live-dot"></span> Setup SMC</div>
+      <div><span class="live-dot"></span> Trade Actif</div>
     </div>
     <div id="analysisContent">
       <div class="loading-text">Initialisation...</div>
@@ -133,9 +132,10 @@ let alertTriggered = false;
 
 let trends = { current: 'neutral', m15: 'neutral', h4: 'neutral' };
 
-// Variables pour le verrouillage du trade
+// State Machine pour la gestion des trades
 let lockedSetup = null;
-let tradeState = 'waiting'; // 'waiting', 'active', 'tp_reached', 'sl_hit'
+let tradeState = 'IDLE'; // 'IDLE', 'ACTIVE', 'COOLDOWN'
+let cooldownCounter = 0;
 
 if(localStorage.getItem('cv_symbol')) currentSymbol = localStorage.getItem('cv_symbol');
 if(localStorage.getItem('cv_tf')) currentTF = localStorage.getItem('cv_tf');
@@ -190,16 +190,9 @@ function getTrend(data) {
 
 async function fetchHTF() {
     const res15 = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=15m&limit=100&t=${Date.now()}`);
-    if (res15 && res15.bars) {
-        trends.m15 = getTrend(res15.bars);
-        updateBadge('badge-15m', '15m', trends.m15);
-    }
-    
+    if (res15 && res15.bars) { trends.m15 = getTrend(res15.bars); updateBadge('badge-15m', '15m', trends.m15); }
     const res4h = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=4h&limit=100&t=${Date.now()}`);
-    if (res4h && res4h.bars) {
-        trends.h4 = getTrend(res4h.bars);
-        updateBadge('badge-4h', '4h', trends.h4);
-    }
+    if (res4h && res4h.bars) { trends.h4 = getTrend(res4h.bars); updateBadge('badge-4h', '4h', trends.h4); }
 }
 
 function updateBadge(id, label, trend) {
@@ -233,35 +226,47 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC AVEC VERROUILLAGE (STATE MACHINE)
+   LOGIQUE SMC & COOLDOWN
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 50) return;
   try {
     const isCurrentUp = trends.current === 'up';
 
-    // 1. SI ON A DEJA UN SETUP VERROUILLE
-    if (lockedSetup) {
-        // Si la tendance s'est inversée sur le TF actuel, on reset le setup
-        if (lockedSetup.direction !== trends.current) {
+    // --- GESTION DU COOLDOWN (Attente après un trade) ---
+    if (tradeState === 'COOLDOWN') {
+        cooldownCounter--;
+        if (cooldownCounter <= 0) {
+            tradeState = 'IDLE';
             lockedSetup = null;
-            tradeState = 'waiting';
         } else {
-            // Vérifier si le trade a atteint son objectif ou son stop
-            if (tradeState !== 'tp_reached' && tradeState !== 'sl_hit') {
-                if ((lockedSetup.type === 'buy' && currentPrice >= lockedSetup.tp) || 
-                    (lockedSetup.type === 'sell' && currentPrice <= lockedSetup.tp)) {
-                    tradeState = 'tp_reached';
-                    if ($('alertToggle').checked && !alertTriggered) triggerAlert("🎯 Objectif TP atteint !", "var(--up)");
-                } 
-                else if ((lockedSetup.type === 'buy' && currentPrice < lockedSetup.sl) || 
-                         (lockedSetup.type === 'sell' && currentPrice > lockedSetup.sl)) {
-                    tradeState = 'sl_hit';
-                    if ($('alertToggle').checked && !alertTriggered) triggerAlert("🛑 Stop-Loss touché.", "var(--down)");
-                }
+            updateTradeStatus(currentPrice, isCurrentUp);
+            drawLines(null); // Aucune ligne pendant le cooldown
+            return; // On ne cherche pas de nouveau trade
+        }
+    }
+
+    // --- GESTION DU TRADE ACTIF ---
+    if (tradeState === 'ACTIVE' && lockedSetup) {
+        // Si la tendance s'inverse complètement, on annule
+        if (lockedSetup.direction !== trends.current) {
+            lockedSetup = null; tradeState = 'IDLE';
+        } else {
+            // Vérifier TP
+            if ((lockedSetup.type === 'buy' && currentPrice >= lockedSetup.tp) || 
+                (lockedSetup.type === 'sell' && currentPrice <= lockedSetup.tp)) {
+                tradeState = 'COOLDOWN';
+                cooldownCounter = 15; // On attend 15 bougies
+                if ($('alertToggle').checked && !alertTriggered) triggerAlert("🎯 Objectif TP atteint !", "var(--up)");
+            } 
+            // Vérifier SL
+            else if ((lockedSetup.type === 'buy' && currentPrice < lockedSetup.sl) || 
+                     (lockedSetup.type === 'sell' && currentPrice > lockedSetup.sl)) {
+                tradeState = 'COOLDOWN';
+                cooldownCounter = 15;
+                if ($('alertToggle').checked && !alertTriggered) triggerAlert("🛑 Stop-Loss touché.", "var(--down)");
             }
             
-            // Mettre à jour l'affichage et sortir
             updateTradeStatus(currentPrice, isCurrentUp);
             renderPanel(isCurrentUp);
             drawLines(lockedSetup);
@@ -269,70 +274,49 @@ function analyzeSMC() {
         }
     }
 
-    // 2. SI ON N'A PAS DE SETUP (ou qu'on vient de le reset), ON EN CHERCHE UN
-    // On utilise uniquement les bougies FERMÉES (on exclut la dernière qui est en cours)
-    const closedCandles = currentData.slice(0, -1);
-    let validOB = null;
-    
-    for (let i = closedCandles.length - 2; i >= closedCandles.length - 30; i--) {
-        const c = closedCandles[i]; const prev = closedCandles[i-1];
+    // --- RECHERCHE D'UN NOUVEAU TRADE (Si IDLE) ---
+    if (tradeState === 'IDLE') {
+        const closedCandles = currentData.slice(0, -1);
+        let validOB = null;
         
-        if (isCurrentUp) {
-            if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
-                const obTop = prev.high;
-                const obBottom = prev.low;
-                const sl = obBottom - (obBottom * 0.0002);
-                
-                let isValid = true;
-                // On vérifie l'invalidation sur les bougies fermées + le prix actuel
-                for(let j = i+1; j < currentData.length; j++) {
-                    if(currentData[j].low < sl) { isValid = false; break; }
+        for (let i = closedCandles.length - 2; i >= closedCandles.length - 20; i--) {
+            const c = closedCandles[i]; const prev = closedCandles[i-1];
+            
+            if (isCurrentUp) {
+                if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
+                    const obTop = prev.high; const obBottom = prev.low; const sl = obBottom - (obBottom * 0.0002);
+                    let isValid = true;
+                    for(let j = i+1; j < currentData.length; j++) { if(currentData[j].low < sl) { isValid = false; break; } }
+                    if(isValid) { validOB = { top: obTop, bottom: obBottom, entry: obTop - ((obTop - obBottom)/2), sl: sl }; break; }
                 }
-                
-                if(isValid) {
-                    validOB = { top: obTop, bottom: obBottom, entry: obTop - ((obTop - obBottom)/2), sl: sl };
-                    break; 
-                }
-            }
-        } else {
-            if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
-                const obTop = prev.high;
-                const obBottom = prev.low;
-                const sl = obTop + (obTop * 0.0002);
-                
-                let isValid = true;
-                for(let j = i+1; j < currentData.length; j++) {
-                    if(currentData[j].high > sl) { isValid = false; break; }
-                }
-                
-                if(isValid) {
-                    validOB = { top: obTop, bottom: obBottom, entry: obBottom + ((obTop - obBottom)/2), sl: sl };
-                    break;
+            } else {
+                if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
+                    const obTop = prev.high; const obBottom = prev.low; const sl = obTop + (obTop * 0.0002);
+                    let isValid = true;
+                    for(let j = i+1; j < currentData.length; j++) { if(currentData[j].high > sl) { isValid = false; break; } }
+                    if(isValid) { validOB = { top: obTop, bottom: obBottom, entry: obBottom + ((obTop - obBottom)/2), sl: sl }; break; }
                 }
             }
         }
-    }
 
-    if (validOB) {
-        // On verrouille le setup !
-        lockedSetup = {
-            type: isCurrentUp ? 'buy' : 'sell',
-            direction: trends.current,
-            entry: validOB.entry,
-            sl: validOB.sl,
-            tp: isCurrentUp ? validOB.entry + (Math.abs(validOB.entry - validOB.sl) * 2) : validOB.entry - (Math.abs(validOB.entry - validOB.sl) * 2)
-        };
-        tradeState = 'active';
-        
-        updateTradeStatus(currentPrice, isCurrentUp);
-        renderPanel(isCurrentUp);
-        drawLines(lockedSetup);
-    } else {
-        lockedSetup = null;
-        tradeState = 'waiting';
-        updateTradeStatus(currentPrice, isCurrentUp);
-        renderPanel(isCurrentUp);
-        drawLines(null);
+        if (validOB) {
+            lockedSetup = {
+                type: isCurrentUp ? 'buy' : 'sell',
+                direction: trends.current,
+                entry: validOB.entry,
+                sl: validOB.sl,
+                tp: isCurrentUp ? validOB.entry + (Math.abs(validOB.entry - validOB.sl) * 2) : validOB.entry - (Math.abs(validOB.entry - validOB.sl) * 2)
+            };
+            tradeState = 'ACTIVE';
+            updateTradeStatus(currentPrice, isCurrentUp);
+            renderPanel(isCurrentUp);
+            drawLines(lockedSetup);
+        } else {
+            lockedSetup = null;
+            updateTradeStatus(currentPrice, isCurrentUp);
+            renderPanel(isCurrentUp);
+            drawLines(null);
+        }
     }
 
   } catch(e) { console.error("Erreur:", e); }
@@ -342,8 +326,14 @@ function updateTradeStatus(price, isCurrentUp) {
     const statusDiv = $('tradeStatus');
     statusDiv.className = ''; 
 
+    if (tradeState === 'COOLDOWN') {
+        statusDiv.textContent = `😴 Pause (${cooldownCounter} bougies restantes)`;
+        statusDiv.classList.add('status-cooldown');
+        return;
+    }
+
     if (!lockedSetup) {
-        statusDiv.textContent = "🔍 En attente d'un nouveau setup valide...";
+        statusDiv.textContent = "🔍 Recherche d'un nouveau setup...";
         statusDiv.classList.add('status-wait');
         return;
     }
@@ -352,27 +342,12 @@ function updateTradeStatus(price, isCurrentUp) {
     const tolerance = price * 0.0002; 
     const isBuy = setup.type === 'buy';
 
-    // 1. Si le trade est déjà TERMINE
-    if (tradeState === 'tp_reached') {
-        statusDiv.textContent = `🎯 Objectif TP atteint ! (Trade Terminé)`;
-        statusDiv.classList.add('status-done');
-        return;
-    }
-    if (tradeState === 'sl_hit') {
-        statusDiv.textContent = `🛑 Setup invalidé (SL touché).`;
-        statusDiv.classList.add('status-invalid');
-        return;
-    }
-
-    // 2. Si le prix touche le TP
     if ((isBuy && price >= setup.tp) || (!isBuy && price <= setup.tp)) {
-        tradeState = 'tp_reached';
         statusDiv.textContent = `🎯 Objectif TP atteint !`;
         statusDiv.classList.add('status-done');
         return;
     }
 
-    // 3. Zone d'entrée
     if (price >= setup.entry - tolerance && price <= setup.entry + tolerance) {
         let isConfluent = (isBuy && trends.m15 === 'up' && trends.h4 === 'up') || (!isBuy && trends.m15 === 'down' && trends.h4 === 'down');
         let conflict = (isBuy && (trends.m15 === 'down' || trends.h4 === 'down')) || (!isBuy && (trends.m15 === 'up' || trends.h4 === 'up'));
@@ -390,7 +365,6 @@ function updateTradeStatus(price, isCurrentUp) {
         return;
     }
 
-    // 4. Attente
     if ((isBuy && price > setup.entry) || (!isBuy && price < setup.entry)) {
         statusDiv.textContent = `⏳ Attendre le repli vers ${setup.entry.toFixed(2)}`;
         statusDiv.classList.add('status-wait');
@@ -404,9 +378,6 @@ function renderPanel(isCurrentUp) {
   const dec = getDecimals(currentSymbol);
   const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
   
-  const longClass = (lockedSetup && lockedSetup.type === 'buy') ? 'buy' : 'buy inactive';
-  const shortClass = (lockedSetup && lockedSetup.type === 'sell') ? 'sell' : 'sell inactive';
-
   let html = `
     <div style="padding:10px 15px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
       <div><div style="font-size:11px; color:var(--muted);">Prix actuel</div><div style="font-size:15px; font-weight:bold;">${fmt(currentPrice)}</div></div>
@@ -414,28 +385,22 @@ function renderPanel(isCurrentUp) {
     </div>
   `;
 
-  if (lockedSetup) {
+  if (lockedSetup && tradeState === 'ACTIVE') {
       const isBuy = lockedSetup.type === 'buy';
       html += `
-        <div class="setup ${longClass}">
-          <div class="setup-title"><span>🟢 ACHAT</span>${isBuy ? '<span style="font-size:10px;background:var(--up);color:#000;padding:2px 6px;border-radius:10px;">ACTIF</span>' : ''}</div>
+        <div class="setup ${isBuy ? 'buy' : 'sell'}">
+          <div class="setup-title"><span>${isBuy ? '🟢 ACHAT' : '🔴 VENTE'}</span></div>
           <div class="trade-grid">
-            <div class="cell precision"><small>Entrée</small><b>${isBuy ? fmt(lockedSetup.entry) : '—'}</b></div>
-            <div class="cell"><small>Stop-Loss</small><b>${isBuy ? fmt(lockedSetup.sl) : '—'}</b></div>
-            <div class="cell"><small>TP (R:R 2)</small><b>${isBuy ? fmt(lockedSetup.tp) : '—'}</b></div>
-          </div>
-        </div>
-        <div class="setup ${shortClass}">
-          <div class="setup-title"><span>🔴 VENTE</span>${!isBuy ? '<span style="font-size:10px;background:var(--down);color:#fff;padding:2px 6px;border-radius:10px;">ACTIF</span>' : ''}</div>
-          <div class="trade-grid">
-            <div class="cell precision"><small>Entrée</small><b>${!isBuy ? fmt(lockedSetup.entry) : '—'}</b></div>
-            <div class="cell"><small>Stop-Loss</small><b>${!isBuy ? fmt(lockedSetup.sl) : '—'}</b></div>
-            <div class="cell"><small>TP (R:R 2)</small><b>${!isBuy ? fmt(lockedSetup.tp) : '—'}</b></div>
+            <div class="cell precision"><small>Entrée</small><b>${fmt(lockedSetup.entry)}</b></div>
+            <div class="cell"><small>Stop-Loss</small><b>${fmt(lockedSetup.sl)}</b></div>
+            <div class="cell"><small>TP (R:R 2)</small><b>${fmt(lockedSetup.tp)}</b></div>
           </div>
         </div>
       `;
+  } else if (tradeState === 'COOLDOWN') {
+      html += `<div class="loading-text">Pause de sécurité avant le prochain trade.</div>`;
   } else {
-      html += `<div class="loading-text">Aucun setup actif. En attente d'une structure claire...</div>`;
+      html += `<div class="loading-text">Aucun setup actif. Le marché est en attente d'une structure claire.</div>`;
   }
 
   $('analysisContent').innerHTML = html;
@@ -445,7 +410,7 @@ function drawLines(setup) {
   priceLines.forEach(line => candleSeries.removePriceLine(line));
   priceLines = [];
   
-  if (!setup) return; 
+  if (!setup || tradeState !== 'ACTIVE') return; 
   
   const addLine = (price, color, title, style) => {
     const line = candleSeries.createPriceLine({ price, color, lineWidth: 2, lineStyle: style, axisLabelVisible: true, title });
@@ -482,14 +447,14 @@ $('symbolSelect').addEventListener('change', (e) => {
     currentSymbol = e.target.value; 
     localStorage.setItem('cv_symbol', currentSymbol); 
     alertTriggered = false; 
-    lockedSetup = null; tradeState = 'waiting'; // Reset trade
+    lockedSetup = null; tradeState = 'IDLE'; // Reset complet
     fetchMainData(); fetchHTF(); 
 });
 $('tfSelect').addEventListener('change', (e) => { 
     currentTF = e.target.value; 
     localStorage.setItem('cv_tf', currentTF); 
     alertTriggered = false; 
-    lockedSetup = null; tradeState = 'waiting'; // Reset trade
+    lockedSetup = null; tradeState = 'IDLE'; // Reset complet
     fetchMainData(); fetchHTF(); 
 });
 </script>
