@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>ChartVision Pro — Forex & Or</title>
-<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+<!-- VERROUILLAGE SUR LA VERSION 4.1.3 (STABLE) -->
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
     --bg:#0b0e14;--panel:#131722;--panel2:#1a1f2c;--line:#2f3a52;
@@ -45,7 +46,7 @@
     min-height: 300px; 
   }
   #chart{
-    position: absolute; top: 0; left: 0; right: 0; bottom: 0; /* Force le remplissage */
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
   }
   
   /* PANNEAU RESULTATS */
@@ -128,7 +129,7 @@ let currentSymbol = 'XAUUSD';
 let currentTF = '5m';
 let currentPrice = 0;
 let updateInterval = null;
-let priceLines = []; // Pour stocker et nettoyer les lignes
+let priceLines = []; 
 
 function getDecimals(symbol) {
   if(symbol.includes('JPY')) return 3;
@@ -138,7 +139,7 @@ function getDecimals(symbol) {
 }
 
 /* =========================================
-   INITIALISATION DU GRAPHIQUE
+   INITIALISATION
    ========================================= */
 function initChart() {
   const chartContainer = $('chart');
@@ -151,6 +152,7 @@ function initChart() {
     timeScale: { borderColor: '#2f3a52', timeVisible: true, secondsVisible: false },
   });
   
+  // La v4 supporte bien addCandlestickSeries
   candleSeries = chart.addCandlestickSeries({
     upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
     wickUpColor: '#26a69a', wickDownColor: '#ef5350',
@@ -165,35 +167,31 @@ function initChart() {
 }
 
 /* =========================================
-   RÉCUPÉRATION DES DONNÉES (Fallback System)
+   RÉCUPÉRATION DES DONNÉES
    ========================================= */
 async function fetchData() {
-  const targetUrl = `https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=200`;
+  if (!candleSeries) return; // Sécurité anti-crash
+
+  // Ajout de &t= pour empêcher le cache d'iOS Safari
+  const targetUrl = `https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=200&t=${Date.now()}`;
   let response;
 
   try {
-    // 1. Essai en direct (souvent supporté)
     response = await fetch(targetUrl);
     if (!response.ok) throw new Error(`Direct: HTTP ${response.status}`);
-    console.log("Connecté en direct");
   } catch (e1) {
-    console.warn("Échec direct, tentative Proxy 1...", e1);
     try {
-      // 2. Proxy Codetabs (très stable)
       const proxy1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
       response = await fetch(proxy1);
       if (!response.ok) throw new Error(`Proxy1: HTTP ${response.status}`);
-      console.log("Connecté via Codetabs");
     } catch (e2) {
-      console.warn("Échec Proxy 1, tentative Proxy 2...", e2);
       try {
-        // 3. Proxy AllOrigins (fallback final)
         const proxy2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
         response = await fetch(proxy2);
         if (!response.ok) throw new Error(`Proxy2: HTTP ${response.status}`);
-        console.log("Connecté via AllOrigins");
       } catch (e3) {
-        throw new Error("Impossible de joindre l'API (réseau ou marchés fermés).");
+        $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Erreur réseau.<br>Vérifiez votre connexion.</div>`;
+        return;
       }
     }
   }
@@ -203,7 +201,7 @@ async function fetchData() {
     const bars = result.bars || [];
     
     if (bars.length === 0) {
-      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--warn)">Aucune donnée reçue.<br>Le marché est peut-être fermé (ex: Forex le week-end).</div>`;
+      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--warn)">Marché fermé ou aucune donnée.</div>`;
       return;
     }
 
@@ -226,7 +224,6 @@ async function fetchData() {
     
     currentData = uniqueData.sort((a, b) => a.time - b.time);
     
-    // Mise à jour du graphique
     candleSeries.setData(currentData);
     chart.timeScale().scrollToRealTime();
     
@@ -234,7 +231,7 @@ async function fetchData() {
     analyzeSMC();
     
   } catch (err) {
-    $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Erreur d'analyse des données.<br><small>${err.message}</small></div>`;
+    $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Erreur formatage.<br><small>${err.message}</small></div>`;
   }
 }
 
@@ -354,7 +351,6 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
    DESSIN SUR LE GRAPHIQUE
    ========================================= */
 function drawLines(lE, lS, lT, sE, sS, sT) {
-  // Nettoyage des anciennes lignes pour éviter de surcharger le graphique
   priceLines.forEach(line => candleSeries.removePriceLine(line));
   priceLines = [];
   
@@ -374,16 +370,14 @@ function drawLines(lE, lS, lT, sE, sS, sT) {
 /* =========================================
    LANCEMENT
    ========================================= */
-// Initialisation au chargement de la page
 window.addEventListener('load', () => {
   initChart();
   
-  // On laisse 200ms au navigateur pour calculer la taille de l'écran avant de charger les données
   setTimeout(() => {
     fetchData();
     if (updateInterval) clearInterval(updateInterval);
-    updateInterval = setInterval(fetchData, 5000); // Rafraîchissement toutes les 5 sec
-  }, 200);
+    updateInterval = setInterval(fetchData, 5000); 
+  }, 300);
 });
 
 $('symbolSelect').addEventListener('change', (e) => {
