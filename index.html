@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — Forex & Or</title>
-<!-- VERROUILLAGE SUR LA VERSION 4.1.3 (STABLE) -->
+<title>ChartVision Pro</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
     --bg:#0b0e14;--panel:#131722;--panel2:#1a1f2c;--line:#2f3a52;
     --txt:#e8eef7;--muted:#8b94a8;--acc:#2962ff;--up:#26a69a;--down:#ef5350;
+    --fvg:#9c27b0; /* Violet pour les FVG */
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
   html,body{height:100%; margin:0; padding:0; overflow:hidden;}
@@ -21,75 +21,95 @@
   
   /* HEADER */
   header{
-    padding:12px 15px; background:#0e1219; border-bottom:1px solid var(--line);
-    display:flex; align-items:center; gap:15px; flex-wrap:wrap;
+    padding:10px 15px; background:#0e1219; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
   }
   header h1{font-size:18px;margin:0;font-weight:700; white-space:nowrap;}
   header h1 span{color:var(--acc)}
   
-  .controls{display:flex; gap:10px; flex:1; min-width:250px;}
+  .controls{display:flex; gap:8px; flex:1; min-width:250px;}
   select{
-    flex:1; background:var(--panel2); border:2px solid var(--line); color:#fff;
-    border-radius:8px; padding:10px; font-size:14px; font-family:inherit; outline:none; font-weight:600;
+    flex:1; background:var(--panel2); border:1px solid var(--line); color:#fff;
+    border-radius:6px; padding:8px; font-size:13px; font-family:inherit; outline:none; font-weight:600;
     appearance: none; background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%238b94a8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
-    background-repeat: no-repeat; background-position: right 12px top 50%; background-size: 12px auto;
+    background-repeat: no-repeat; background-position: right 10px top 50%; background-size: 10px auto;
   }
-  select:focus { border-color: var(--acc); }
+  
+  /* TOGGLE ALERTES */
+  .alert-toggle {
+    display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted);
+    cursor: pointer; padding: 4px 8px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line);
+  }
+  .alert-toggle input { margin: 0; accent-color: var(--up); }
 
   /* LAYOUT */
-  .app{display:flex; flex:1; overflow:hidden;}
+  .app{display:flex; flex:1; overflow:hidden; position:relative;}
   @media(max-width:900px){ .app{flex-direction:column;} }
   
+  /* TOAST ALERTE */
+  #toast {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    background: var(--acc); color: white; padding: 8px 16px; border-radius: 20px;
+    font-weight: bold; font-size: 13px; z-index: 100; display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5); animation: pop 0.3s ease;
+  }
+  @keyframes pop { 0% { transform: translate(-50%, -10px); opacity: 0; } 100% { transform: translate(-50%, 0); opacity: 1; } }
+
   /* GRAPHIQUE */
   .chart-container{
     flex:1; position:relative; background:#05080c;
     min-height: 300px; 
   }
-  #chart{
-    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  }
+  #chart{ position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
   
   /* PANNEAU RESULTATS */
   .panel{
-    width:380px; background:var(--panel); border-left:1px solid var(--line);
+    width:340px; background:var(--panel); border-left:1px solid var(--line);
     display:flex; flex-direction:column; overflow-y:auto;
   }
   @media(max-width:900px){ 
     .panel{width:100%; height:45vh; border-left:none; border-top:1px solid var(--line);} 
   }
   
-  .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:12px; color:var(--muted);}
-  .setup{padding:15px; border-bottom:1px solid var(--line);}
-  .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.1) 0%, transparent 100%);}
-  .setup.sell{background:linear-gradient(180deg, rgba(239,83,80,0.1) 0%, transparent 100%);}
-  .setup-title{font-weight:bold; font-size:15px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;}
+  .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted); display:flex; justify-content:space-between;}
+  .setup{padding:12px 15px; border-bottom:1px solid var(--line);}
+  .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.08) 0%, transparent 100%);}
+  .setup.sell{background:linear-gradient(180deg, rgba(239,83,80,0.08) 0%, transparent 100%);}
+  .setup-title{font-weight:bold; font-size:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;}
   .setup.buy .setup-title{color:var(--up)} .setup.sell .setup-title{color:var(--down)}
   
-  .trade-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
-  .cell{background:rgba(0,0,0,0.3); padding:10px; border-radius:6px; border:1px solid var(--line);}
-  .cell small{display:block; color:var(--muted); font-size:11px; text-transform:uppercase; margin-bottom:4px;}
-  .cell b{font-family:monospace; font-size:14px; color:#fff;}
+  .trade-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px;}
+  .cell{background:rgba(0,0,0,0.2); padding:8px; border-radius:4px; border:1px solid var(--line);}
+  .cell small{display:block; color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:2px;}
+  .cell b{font-family:monospace; font-size:13px; color:#fff;}
   
-  .live-dot{display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--up); margin-right:8px; animation:pulse 1.5s infinite;}
-  @keyframes pulse{ 0% { box-shadow: 0 0 0 0 rgba(38,166,154,0.7); } 70% { box-shadow: 0 0 0 8px rgba(38,166,154,0); } 100% { box-shadow: 0 0 0 0 rgba(38,166,154,0); } }
+  .live-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--up); margin-right:6px; animation:pulse 1.5s infinite;}
+  @keyframes pulse{ 0% { box-shadow: 0 0 0 0 rgba(38,166,154,0.7); } 70% { box-shadow: 0 0 0 6px rgba(38,166,154,0); } 100% { box-shadow: 0 0 0 0 rgba(38,166,154,0); } }
   
-  .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:14px; }
+  .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:13px; }
+  
+  /* FVG BADGE */
+  .badge-fvg { background: rgba(156,39,176,0.2); color: #e1bee7; padding: 4px 8px; border-radius: 4px; font-size: 11px; margin-top: 5px; display: inline-block;}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Chart<span>Vision</span> Pro</h1>
+  <h1>Chart<span>Vision</span></h1>
   <div class="controls">
     <select id="symbolSelect">
       <optgroup label="Métaux">
-        <option value="XAUUSD" selected>🥇 XAU/USD (Or)</option>
-        <option value="XAGUSD">🥈 XAG/USD (Argent)</option>
+        <option value="XAUUSD">🥇 XAU/USD</option>
+        <option value="XAGUSD">🥈 XAG/USD</option>
+      </optgroup>
+      <optgroup label="Indices">
+        <option value="US500">🇺🇸 S&P 500</option>
+        <option value="US100">🇺🇸 NASDAQ</option>
+        <option value="GER40">🇩🇪 DAX 40</option>
       </optgroup>
       <optgroup label="Forex">
         <option value="EURUSD">🇪🇺 EUR/USD</option>
         <option value="GBPUSD">🇬🇧 GBP/USD</option>
-        <option value="USDJPY">🇺🇸 USD/JPY</option>
       </optgroup>
       <optgroup label="Crypto">
         <option value="BTCUSD">₿ BTC/USD</option>
@@ -97,25 +117,32 @@
     </select>
     
     <select id="tfSelect">
-      <option value="1m">1 Minute</option>
-      <option value="5m" selected>5 Minutes</option>
-      <option value="15m">15 Minutes</option>
-      <option value="1h">1 Heure</option>
+      <option value="1m">1m</option>
+      <option value="5m">5m</option>
+      <option value="15m">15m</option>
+      <option value="1h">1h</option>
     </select>
   </div>
+  
+  <label class="alert-toggle">
+    <input type="checkbox" id="alertToggle"> Alertes
+  </label>
 </header>
 
 <div class="app">
+  <div id="toast">Objectif Atteint ! 🎯</div>
+  
   <div class="chart-container" id="chartContainer">
     <div id="chart"></div>
   </div>
   
   <div class="panel">
     <div class="panel-header">
-      <span class="live-dot"></span> Analyse SMC en temps réel
+      <div><span class="live-dot"></span> SMC Temps Réel</div>
+      <div id="fvgBadge" class="badge-fvg" style="display:none;">FVG Détecté</div>
     </div>
     <div id="analysisContent">
-      <div class="loading-text">Initialisation du graphique...</div>
+      <div class="loading-text">Initialisation...</div>
     </div>
   </div>
 </div>
@@ -130,11 +157,17 @@ let currentTF = '5m';
 let currentPrice = 0;
 let updateInterval = null;
 let priceLines = []; 
+let currentSetup = null; // Pour stocker le setup actif et gérer les alertes
+let alertTriggered = false;
+
+// Charger les préférences
+if(localStorage.getItem('cv_symbol')) currentSymbol = localStorage.getItem('cv_symbol');
+if(localStorage.getItem('cv_tf')) currentTF = localStorage.getItem('cv_tf');
 
 function getDecimals(symbol) {
   if(symbol.includes('JPY')) return 3;
   if(symbol === 'XAUUSD') return 2;
-  if(symbol === 'BTCUSD') return 2;
+  if(symbol === 'BTCUSD' || symbol === 'US500' || symbol === 'US100' || symbol === 'GER40') return 1;
   return 5;
 }
 
@@ -152,7 +185,6 @@ function initChart() {
     timeScale: { borderColor: '#2f3a52', timeVisible: true, secondsVisible: false },
   });
   
-  // La v4 supporte bien addCandlestickSeries
   candleSeries = chart.addCandlestickSeries({
     upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
     wickUpColor: '#26a69a', wickDownColor: '#ef5350',
@@ -164,35 +196,32 @@ function initChart() {
     chart.applyOptions({ width: newRect.width, height: newRect.height });
   });
   resizeObserver.observe(chartContainer);
+  
+  // Restaurer l'UI
+  $('symbolSelect').value = currentSymbol;
+  $('tfSelect').value = currentTF;
 }
 
 /* =========================================
    RÉCUPÉRATION DES DONNÉES
    ========================================= */
 async function fetchData() {
-  if (!candleSeries) return; // Sécurité anti-crash
+  if (!candleSeries) return;
 
-  // Ajout de &t= pour empêcher le cache d'iOS Safari
   const targetUrl = `https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=200&t=${Date.now()}`;
   let response;
 
   try {
     response = await fetch(targetUrl);
-    if (!response.ok) throw new Error(`Direct: HTTP ${response.status}`);
+    if (!response.ok) throw new Error("Direct fail");
   } catch (e1) {
     try {
       const proxy1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
       response = await fetch(proxy1);
-      if (!response.ok) throw new Error(`Proxy1: HTTP ${response.status}`);
+      if (!response.ok) throw new Error("Proxy1 fail");
     } catch (e2) {
-      try {
-        const proxy2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-        response = await fetch(proxy2);
-        if (!response.ok) throw new Error(`Proxy2: HTTP ${response.status}`);
-      } catch (e3) {
-        $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Erreur réseau.<br>Vérifiez votre connexion.</div>`;
-        return;
-      }
+      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Erreur réseau. Marché fermé ?</div>`;
+      return;
     }
   }
 
@@ -223,70 +252,98 @@ async function fetchData() {
     }
     
     currentData = uniqueData.sort((a, b) => a.time - b.time);
-    
     candleSeries.setData(currentData);
-    chart.timeScale().scrollToRealTime();
     
-    currentPrice = currentData[currentData.length - 1].close;
-    analyzeSMC();
+    // Ne pas scroller si on est en train de regarder l'historique
+    if (currentData.length > 0) {
+        currentPrice = currentData[currentData.length - 1].close;
+        analyzeSMC();
+    }
     
   } catch (err) {
-    $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Erreur formatage.<br><small>${err.message}</small></div>`;
+    $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Erreur formatage.</div>`;
   }
 }
 
 /* =========================================
-   ANALYSE SMC
+   ANALYSE SMC COMPLETE
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 10) return;
 
   try {
+    // 1. Détection Swings
     const swings = [];
     for (let i = 2; i < currentData.length - 2; i++) {
       const c = currentData[i];
-      if (c.high > currentData[i-1].high && c.high > currentData[i+1].high)
-        swings.push({ index: i, price: c.high, type: 'H' });
-      if (c.low < currentData[i-1].low && c.low < currentData[i+1].low)
-        swings.push({ index: i, price: c.low, type: 'L' });
+      if (c.high > currentData[i-1].high && c.high > currentData[i+1].high) swings.push({ index: i, price: c.high, type: 'H' });
+      if (c.low < currentData[i-1].low && c.low < currentData[i+1].low) swings.push({ index: i, price: c.low, type: 'L' });
     }
 
+    // 2. Tendance
     const highs = swings.filter(s => s.type === 'H');
     const lows = swings.filter(s => s.type === 'L');
     let trend = 'neutral';
     if (highs.length >= 2 && lows.length >= 2) {
-      const lastH = highs[highs.length-1];
-      const prevH = highs[highs.length-2];
-      const lastL = lows[lows.length-1];
-      const prevL = lows[lows.length-2];
-      if (lastH.price > prevH.price && lastL.price > prevL.price) trend = 'up';
-      if (lastH.price < prevH.price && lastL.price < prevL.price) trend = 'down';
+      if (highs[highs.length-1].price > highs[highs.length-2].price && lows[lows.length-1].price > lows[lows.length-2].price) trend = 'up';
+      if (highs[highs.length-1].price < highs[highs.length-2].price && lows[lows.length-1].price < lows[lows.length-2].price) trend = 'down';
     }
 
-    let lastOB = null;
-    for (let i = currentData.length - 5; i < currentData.length - 1; i++) {
+    // 3. Order Blocks (Haussier et Baissier)
+    let lastOBbull = null;
+    let lastOBbear = null;
+    for (let i = currentData.length - 10; i < currentData.length - 1; i++) {
       const c = currentData[i];
       const prev = currentData[i-1];
-      if (c.close > c.open && prev.close < prev.open) {
-        const bodySize = Math.abs(c.close - c.open);
-        if (bodySize > (currentPrice * 0.0001)) {
-          lastOB = { type: 'bullish', top: prev.high, bottom: prev.low };
-        }
+      // OB Haussier : Rouge puis grosse Verte
+      if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
+        lastOBbull = { top: prev.high, bottom: prev.low };
+      }
+      // OB Baissier : Verte puis grosse Rouge
+      if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
+        lastOBbear = { top: prev.high, bottom: prev.low };
       }
     }
 
-    const longEntry = lastOB ? lastOB.top : currentPrice * 0.999;
-    const longSL = lastOB ? lastOB.bottom * 0.9995 : currentPrice * 0.998;
-    const longTP = currentPrice * 1.002;
-    
-    const shortEntry = currentPrice * 1.001;
-    const shortSL = currentPrice * 1.002;
-    const shortTP = currentPrice * 0.998;
+    // 4. Fair Value Gaps (FVG)
+    let currentFVG = null;
+    for (let i = currentData.length - 15; i < currentData.length - 2; i++) {
+      const c1 = currentData[i];
+      const c3 = currentData[i+2];
+      // FVG Haussier
+      if (c1.high < c3.low) currentFVG = { type: 'bullish', top: c3.low, bottom: c1.high };
+      // FVG Baissier
+      if (c1.low > c3.high) currentFVG = { type: 'bearish', top: c1.low, bottom: c3.high };
+    }
 
-    renderPanel(trend, lastOB, longEntry, longSL, longTP, shortEntry, shortSL, shortTP);
-    drawLines(longEntry, longSL, longTP, shortEntry, shortSL, shortTP);
+    // 5. Calcul des setups avec R:R = 2.0 EXACTEMENT
+    
+    // --- SETUP ACHAT ---
+    let longEntry = lastOBbull ? lastOBbull.top : currentPrice * 0.999;
+    let longSL = lastOBbull ? lastOBbull.bottom : longEntry * 0.998; // Si pas d'OB, SL = 0.2% sous l'entrée
+    let riskLong = Math.abs(longEntry - longSL);
+    if(riskLong === 0) riskLong = currentPrice * 0.001; // Sécurité
+    let longTP = longEntry + (riskLong * 2); // R:R = 2.0 exact
+
+    // --- SETUP VENTE ---
+    let shortEntry = lastOBbear ? lastOBbear.bottom : currentPrice * 1.001;
+    let shortSL = lastOBbear ? lastOBbear.top : shortEntry * 1.002;
+    let riskShort = Math.abs(shortEntry - shortSL);
+    if(riskShort === 0) riskShort = currentPrice * 0.001;
+    let shortTP = shortEntry - (riskShort * 2); // R:R = 2.0 exact
+
+    // Sauvegarde pour les alertes
+    currentSetup = {
+        favored: trend === 'up' ? 'long' : (trend === 'down' ? 'short' : 'none'),
+        long: { entry: longEntry, sl: longSL, tp: longTP },
+        short: { entry: shortEntry, sl: shortSL, tp: shortTP }
+    };
+
+    renderPanel(trend, lastOBbull, longEntry, longSL, longTP, shortEntry, shortSL, shortTP);
+    drawLinesAndFVG(lastOBbull, longEntry, longSL, longTP, shortEntry, shortSL, shortTP, currentFVG);
+
   } catch(e) {
-    console.error("Erreur d'analyse interne:", e);
+    console.error("Erreur d'analyse:", e);
   }
 }
 
@@ -301,45 +358,50 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
   const trendText = trend === 'up' ? 'HAUSSIÈRE' : trend === 'down' ? 'BAISSIÈRE' : 'NEUTRE';
 
   let html = `
-    <div style="padding:15px; border-bottom:1px solid var(--line);">
-      <div style="font-size:13px; color:var(--muted); margin-bottom:5px;">Prix Actuel : ${fmt(currentPrice)}</div>
-      <div style="font-size:18px; font-weight:bold; color:${trendColor}">Tendance : ${trendText}</div>
+    <div style="padding:12px 15px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-size:12px; color:var(--muted);">Prix : ${fmt(currentPrice)}</div>
+        <div style="font-size:16px; font-weight:bold; color:${trendColor}">${trendText}</div>
+      </div>
+      <div style="text-align:right; font-size:11px; color:var(--muted);">
+        R:R Fixé à <b>2.0</b>
+      </div>
     </div>
   `;
 
   if (ob) {
     html += `
-      <div style="padding:10px 15px; background:rgba(41,98,255,0.1); border-bottom:1px solid var(--line); font-size:13px;">
-        🟦 <b>Order Block haussier</b><br>
-        Zone : ${fmt(ob.bottom)} - ${fmt(ob.top)}
+      <div style="padding:8px 15px; background:rgba(41,98,255,0.1); border-bottom:1px solid var(--line); font-size:12px;">
+        🟦 <b>Order Block Haussier</b><br>
+        <span style="color:var(--muted)">Zone : ${fmt(ob.bottom)} - ${fmt(ob.top)}</span>
       </div>
     `;
   }
 
   html += `
-    <div class="setup buy">
+    <div class="setup buy" style="${trend === 'up' ? 'border-left:3px solid var(--up)' : ''}">
       <div class="setup-title">
-        <span>🟢 Setup ACHAT</span>
-        ${trend === 'up' ? '<span style="font-size:11px;background:var(--up);color:#000;padding:3px 8px;border-radius:12px;">FAVORI</span>' : ''}
+        <span>🟢 ACHAT</span>
+        ${trend === 'up' ? '<span style="font-size:10px;background:var(--up);color:#000;padding:2px 6px;border-radius:10px;">FAVORI</span>' : ''}
       </div>
       <div class="trade-grid">
         <div class="cell"><small>Entrée</small><b>${fmt(lE)}</b></div>
         <div class="cell"><small>Stop-Loss</small><b>${fmt(lS)}</b></div>
         <div class="cell"><small>Take-Profit</small><b>${fmt(lT)}</b></div>
-        <div class="cell"><small>R:R</small><b>${((lT-lE)/(lE-lS)).toFixed(2)}</b></div>
+        <div class="cell"><small>R:R</small><b>2.00</b></div>
       </div>
     </div>
 
-    <div class="setup sell">
+    <div class="setup sell" style="${trend === 'down' ? 'border-left:3px solid var(--down)' : ''}">
       <div class="setup-title">
-        <span>🔴 Setup VENTE</span>
-        ${trend === 'down' ? '<span style="font-size:11px;background:var(--down);color:#fff;padding:3px 8px;border-radius:12px;">FAVORI</span>' : ''}
+        <span>🔴 VENTE</span>
+        ${trend === 'down' ? '<span style="font-size:10px;background:var(--down);color:#fff;padding:2px 6px;border-radius:10px;">FAVORI</span>' : ''}
       </div>
       <div class="trade-grid">
         <div class="cell"><small>Entrée</small><b>${fmt(sE)}</b></div>
         <div class="cell"><small>Stop-Loss</small><b>${fmt(sS)}</b></div>
         <div class="cell"><small>Take-Profit</small><b>${fmt(sT)}</b></div>
-        <div class="cell"><small>R:R</small><b>${((sE-sT)/(sS-sE)).toFixed(2)}</b></div>
+        <div class="cell"><small>R:R</small><b>2.00</b></div>
       </div>
     </div>
   `;
@@ -348,31 +410,78 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
 }
 
 /* =========================================
-   DESSIN SUR LE GRAPHIQUE
+   DESSIN SUR LE GRAPHIQUE ET ALERTES
    ========================================= */
-function drawLines(lE, lS, lT, sE, sS, sT) {
+function drawLinesAndFVG(ob, lE, lS, lT, sE, sS, sT, fvg) {
+  // Nettoyage
   priceLines.forEach(line => candleSeries.removePriceLine(line));
   priceLines = [];
   
   const addLine = (price, color, title, style) => {
-    const line = candleSeries.createPriceLine({
-      price: price, color: color, lineWidth: 1,
-      lineStyle: style, axisLabelVisible: true, title: title,
-    });
+    const line = candleSeries.createPriceLine({ price, color, lineWidth: 1, lineStyle: style, axisLabelVisible: true, title });
     priceLines.push(line);
   };
 
-  addLine(lE, '#2962ff', 'Entrée L', LightweightCharts.LineStyle.Solid);
-  addLine(lS, '#ef5350', 'SL L', LightweightCharts.LineStyle.Dashed);
-  addLine(lT, '#26a69a', 'TP L', LightweightCharts.LineStyle.Dashed);
+  // Lignes du Setup Favori
+  if (currentSetup.favored === 'long') {
+      addLine(lE, '#2962ff', 'Entrée', LightweightCharts.LineStyle.Solid);
+      addLine(lS, '#ef5350', 'SL', LightweightCharts.LineStyle.Dashed);
+      addLine(lT, '#26a69a', 'TP', LightweightCharts.LineStyle.Dashed);
+  } else if (currentSetup.favored === 'short') {
+      addLine(sE, '#2962ff', 'Entrée', LightweightCharts.LineStyle.Solid);
+      addLine(sS, '#ef5350', 'SL', LightweightCharts.LineStyle.Dashed);
+      addLine(sT, '#26a69a', 'TP', LightweightCharts.LineStyle.Dashed);
+  }
+
+  // Dessin des FVG
+  if (fvg) {
+      $('fvgBadge').style.display = 'inline-block';
+      addLine(fvg.top, '#9c27b0', 'FVG Top', LightweightCharts.LineStyle.Dotted);
+      addLine(fvg.bottom, '#9c27b0', 'FVG Bot', LightweightCharts.LineStyle.Dotted);
+  } else {
+      $('fvgBadge').style.display = 'none';
+  }
+
+  // GESTION DES ALERTES (Vibrations + Toast)
+  if ($('alertToggle').checked && currentSetup.favored !== 'none' && !alertTriggered) {
+      const setup = currentSetup[currentSetup.favored];
+      
+      // Si le prix actuel atteint le TP (à 0.05% près)
+      if (Math.abs(currentPrice - setup.tp) < (currentPrice * 0.0005)) {
+          triggerAlert("Objectif TP Atteint ! 🎯", "var(--up)");
+      }
+      // Si le prix touche le SL
+      if (Math.abs(currentPrice - setup.sl) < (currentPrice * 0.0005)) {
+          triggerAlert("Stop-Loss Touché ! 🛑", "var(--down)");
+      }
+      // Si le prix touche l'Entrée
+      if (Math.abs(currentPrice - setup.entry) < (currentPrice * 0.0002)) {
+          triggerAlert("Prix à l'Entrée ! ⚡", "var(--acc)");
+      }
+  }
+}
+
+function triggerAlert(msg, color) {
+    alertTriggered = true;
+    const toast = $('toast');
+    toast.textContent = msg;
+    toast.style.background = color;
+    toast.style.display = 'block';
+    
+    // Vibration mobile
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    
+    setTimeout(() => { toast.style.display = 'none'; }, 4000);
+    
+    // Reset de l'alerte après 1 minute pour éviter de spammer
+    setTimeout(() => { alertTriggered = false; }, 60000);
 }
 
 /* =========================================
-   LANCEMENT
+   LANCEMENT ET ÉVÉNEMENTS
    ========================================= */
 window.addEventListener('load', () => {
   initChart();
-  
   setTimeout(() => {
     fetchData();
     if (updateInterval) clearInterval(updateInterval);
@@ -382,14 +491,21 @@ window.addEventListener('load', () => {
 
 $('symbolSelect').addEventListener('change', (e) => {
   currentSymbol = e.target.value;
+  localStorage.setItem('cv_symbol', currentSymbol);
   $('analysisContent').innerHTML = '<div class="loading-text">Chargement...</div>';
   fetchData();
 });
+
 $('tfSelect').addEventListener('change', (e) => {
   currentTF = e.target.value;
+  localStorage.setItem('cv_tf', currentTF);
   $('analysisContent').innerHTML = '<div class="loading-text">Chargement...</div>';
   fetchData();
 });
+
+// Réinitialiser l'alerte quand on change les paramètres
+$('symbolSelect').addEventListener('change', () => { alertTriggered = false; });
+$('tfSelect').addEventListener('change', () => { alertTriggered = false; });
 </script>
 </body>
 </html>
