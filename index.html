@@ -3,37 +3,50 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — Forex & Or en Temps Réel</title>
+<title>ChartVision Pro — Forex & Or</title>
 <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
-    --bg:#0b0e14;--panel:#131722;--panel2:#1a1f2c;
-    --line:#232c3d;
-    --txt:#d1d4dc;--muted:#8b94a8;--dim:#5d6577;
-    --acc:#2962ff;--up:#26a69a;--down:#ef5350;--warn:#ff9800;
+    --bg:#0b0e14;--panel:#131722;--panel2:#1a1f2c;--line:#2f3a52;
+    --txt:#e8eef7;--muted:#8b94a8;--acc:#2962ff;--up:#26a69a;--down:#ef5350;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
-  html,body{height:100%; margin:0; padding:0;}
+  html,body{height:100%; margin:0; padding:0; overflow:hidden;}
   body{
     background:var(--bg); color:var(--txt); 
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    font-size:13px; overflow:hidden;
+    display:flex; flex-direction:column;
   }
+  
+  /* HEADER OPTIMISÉ MOBILE */
   header{
-    padding:10px 15px; background:#0e1219; border-bottom:1px solid var(--line);
-    display:flex; align-items:center; gap:10px; height:50px; flex-wrap:wrap;
+    padding:12px 15px; background:#0e1219; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:15px; flex-wrap:wrap;
   }
-  header h1{font-size:16px;margin:0;font-weight:700; white-space:nowrap;}
+  header h1{font-size:18px;margin:0;font-weight:700; white-space:nowrap;}
   header h1 span{color:var(--acc)}
-  .controls{display:flex; gap:6px; margin-left:auto; flex-wrap:wrap;}
+  
+  .controls{display:flex; gap:10px; flex:1; min-width:250px;}
   select{
-    background:var(--panel2); border:1px solid var(--line); color:var(--txt);
-    border-radius:5px; padding:6px 8px; font-size:12px; font-family:inherit; outline:none; font-weight:bold;
+    flex:1; background:var(--panel2); border:2px solid var(--line); color:#fff;
+    border-radius:8px; padding:10px; font-size:14px; font-family:inherit; outline:none; font-weight:600;
+    appearance: none; background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%238b94a8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat; background-position: right 12px top 50%; background-size: 12px auto;
   }
-  .app{display:flex; height:calc(100vh - 50px);}
+  select:focus { border-color: var(--acc); }
+
+  /* LAYOUT */
+  .app{display:flex; flex:1; overflow:hidden;}
   @media(max-width:900px){ .app{flex-direction:column;} }
-  .chart-container{flex:1; position:relative; background:#05080c; min-height: 250px;}
+  
+  /* GRAPHIQUE */
+  .chart-container{
+    flex:1; position:relative; background:#05080c;
+    min-height: 300px; /* Force une taille minimale pour iOS */
+  }
   #chart{width:100%; height:100%;}
+  
+  /* PANNEAU RESULTATS */
   .panel{
     width:380px; background:var(--panel); border-left:1px solid var(--line);
     display:flex; flex-direction:column; overflow-y:auto;
@@ -41,18 +54,21 @@
   @media(max-width:900px){ 
     .panel{width:100%; height:45vh; border-left:none; border-top:1px solid var(--line);} 
   }
-  .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted);}
+  
+  .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:12px; color:var(--muted);}
   .setup{padding:15px; border-bottom:1px solid var(--line);}
   .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.1) 0%, transparent 100%);}
   .setup.sell{background:linear-gradient(180deg, rgba(239,83,80,0.1) 0%, transparent 100%);}
-  .setup-title{font-weight:bold; font-size:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;}
+  .setup-title{font-weight:bold; font-size:15px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;}
   .setup.buy .setup-title{color:var(--up)} .setup.sell .setup-title{color:var(--down)}
+  
   .trade-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
-  .cell{background:rgba(0,0,0,0.3); padding:8px; border-radius:4px; border:1px solid var(--line);}
-  .cell small{display:block; color:var(--dim); font-size:10px; text-transform:uppercase; margin-bottom:2px;}
-  .cell b{font-family:monospace; font-size:13px;}
-  .live-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--up); margin-right:5px; animation:pulse 1.5s infinite;}
-  @keyframes pulse{ 0% { box-shadow: 0 0 0 0 rgba(38,166,154,0.7); } 70% { box-shadow: 0 0 0 6px rgba(38,166,154,0); } 100% { box-shadow: 0 0 0 0 rgba(38,166,154,0); } }
+  .cell{background:rgba(0,0,0,0.3); padding:10px; border-radius:6px; border:1px solid var(--line);}
+  .cell small{display:block; color:var(--muted); font-size:11px; text-transform:uppercase; margin-bottom:4px;}
+  .cell b{font-family:monospace; font-size:14px; color:#fff;}
+  
+  .live-dot{display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--up); margin-right:8px; animation:pulse 1.5s infinite;}
+  @keyframes pulse{ 0% { box-shadow: 0 0 0 0 rgba(38,166,154,0.7); } 70% { box-shadow: 0 0 0 8px rgba(38,166,154,0); } 100% { box-shadow: 0 0 0 0 rgba(38,166,154,0); } }
 </style>
 </head>
 <body>
@@ -61,21 +77,20 @@
   <h1>Chart<span>Vision</span> Pro</h1>
   <div class="controls">
     <select id="symbolSelect">
+      <optgroup label="Métaux">
+        <option value="XAUUSD" selected>🥇 XAU/USD (Or)</option>
+        <option value="XAGUSD">🥈 XAG/USD (Argent)</option>
+      </optgroup>
       <optgroup label="Forex">
-        <option value="EURUSD">🇪🇺 EUR / USD</option>
-        <option value="GBPUSD">🇬🇧 GBP / USD</option>
-        <option value="USDJPY">🇺🇸 USD / JPY</option>
-        <option value="AUDUSD">🇦🇺 AUD / USD</option>
+        <option value="EURUSD">🇪🇺 EUR/USD</option>
+        <option value="GBPUSD">🇬🇧 GBP/USD</option>
+        <option value="USDJPY">🇺🇸 USD/JPY</option>
       </optgroup>
-      <optgroup label="Métaux Précieux">
-        <option value="XAUUSD" selected>🥇 XAU / USD (Or)</option>
-        <option value="XAGUSD">🥈 XAG / USD (Argent)</option>
-      </optgroup>
-      <optgroup label="Crypto (Bonus)">
-        <option value="BTCUSD">₿ BTC / USD</option>
-        <option value="ETHUSD">Ξ ETH / USD</option>
+      <optgroup label="Crypto">
+        <option value="BTCUSD">₿ BTC/USD</option>
       </optgroup>
     </select>
+    
     <select id="tfSelect">
       <option value="1m">1 Minute</option>
       <option value="5m" selected>5 Minutes</option>
@@ -86,9 +101,10 @@
 </header>
 
 <div class="app">
-  <div class="chart-container">
+  <div class="chart-container" id="chartContainer">
     <div id="chart"></div>
   </div>
+  
   <div class="panel">
     <div class="panel-header">
       <span class="live-dot"></span> Analyse SMC en temps réel
@@ -117,16 +133,18 @@ function getDecimals(symbol) {
 }
 
 /* =========================================
-   1. INITIALISATION DU GRAPHIQUE
+   INITIALISATION DU GRAPHIQUE
    ========================================= */
 function initChart() {
   const chartContainer = $('chart');
+  
+  // Création du graphique
   chart = LightweightCharts.createChart(chartContainer, {
     layout: { background: { type: 'solid', color: '#05080c' }, textColor: '#d1d4dc' },
     grid: { vertLines: { color: '#1a1f2c' }, horzLines: { color: '#1a1f2c' } },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    rightPriceScale: { borderColor: '#232c3d' },
-    timeScale: { borderColor: '#232c3d', timeVisible: true, secondsVisible: false },
+    rightPriceScale: { borderColor: '#2f3a52' },
+    timeScale: { borderColor: '#2f3a52', timeVisible: true, secondsVisible: false },
   });
   
   candleSeries = chart.addCandlestickSeries({
@@ -134,21 +152,23 @@ function initChart() {
     wickUpColor: '#26a69a', wickDownColor: '#ef5350',
   });
 
-  new ResizeObserver(entries => {
+  // Redimensionnement auto
+  const resizeObserver = new ResizeObserver(entries => {
     if (entries.length === 0 || entries[0].target !== chartContainer) return;
     const newRect = entries[0].contentRect;
     chart.applyOptions({ width: newRect.width, height: newRect.height });
-  }).observe(chartContainer);
+  });
+  resizeObserver.observe(chartContainer);
 }
 
 /* =========================================
-   2. RÉCUPÉRATION DES DONNÉES (avec correction float)
+   RÉCUPÉRATION DES DONNÉES (via AllOrigins)
    ========================================= */
 async function fetchData() {
   try {
-    // Utilisation du proxy pour éviter les blocages CORS sur mobile
     const targetUrl = `https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=200`;
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+    // On utilise allorigins.win qui est beaucoup plus stable que corsproxy.io
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
 
     const response = await fetch(proxyUrl);
     if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
@@ -156,49 +176,45 @@ async function fetchData() {
     const result = await response.json();
     const bars = result.bars || [];
     
-    if (bars.length === 0) throw new Error("Aucune donnée reçue (marché fermé ?)");
+    if (bars.length === 0) throw new Error("Aucune donnée reçue (marché fermé le week-end ?)");
 
-    // CORRECTION : On transforme les chaînes de caractères en nombres (Float)
+    // Formatage propre et conversion en float
     const parsedData = bars.map(d => ({
-      time: Math.floor(new Date(d.openTime).getTime() / 1000), // Date en secondes
+      time: Math.floor(new Date(d.openTime).getTime() / 1000),
       open: parseFloat(d.open),
       high: parseFloat(d.high),
       low: parseFloat(d.low),
       close: parseFloat(d.close)
     }));
 
-    // Filtrer les doublons de temps (parfois renvoyés par l'API)
+    // Déduplication et tri
     const uniqueData = [];
     const seenTimes = new Set();
     for(const item of parsedData) {
-      if(!seenTimes.has(item.time)) {
+      if(!seenTimes.has(item.time) && !isNaN(item.time)) {
         seenTimes.add(item.time);
         uniqueData.push(item);
       }
     }
     
-    // Trier par ordre chronologique
     currentData = uniqueData.sort((a, b) => a.time - b.time);
     
     // Mise à jour du graphique
     candleSeries.setData(currentData);
-    
-    // Placer la vue sur les dernières bougies
     chart.timeScale().scrollToRealTime();
-
-    currentPrice = currentData[currentData.length - 1].close;
     
+    currentPrice = currentData[currentData.length - 1].close;
     analyzeSMC();
     
   } catch (err) {
     console.error("Erreur API:", err);
     $('analysisContent').innerHTML = `<div style="padding:20px; color:var(--down);">
-      Erreur d'analyse.<br><br><small>${err.message}</small></div>`;
+      Erreur de connexion.<br><br><small>${err.message}</small></div>`;
   }
 }
 
 /* =========================================
-   3. ANALYSE SMC
+   ANALYSE SMC
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 10) return;
@@ -253,7 +269,7 @@ function analyzeSMC() {
 }
 
 /* =========================================
-   4. AFFICHAGE HTML
+   AFFICHAGE HTML
    ========================================= */
 function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
   const dec = getDecimals(currentSymbol);
@@ -264,15 +280,15 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
 
   let html = `
     <div style="padding:15px; border-bottom:1px solid var(--line);">
-      <div style="font-size:12px; color:var(--muted); margin-bottom:5px;">Prix Actuel : ${fmt(currentPrice)}</div>
-      <div style="font-size:16px; font-weight:bold; color:${trendColor}">Tendance : ${trendText}</div>
+      <div style="font-size:13px; color:var(--muted); margin-bottom:5px;">Prix Actuel : ${fmt(currentPrice)}</div>
+      <div style="font-size:18px; font-weight:bold; color:${trendColor}">Tendance : ${trendText}</div>
     </div>
   `;
 
   if (ob) {
     html += `
-      <div style="padding:10px 15px; background:rgba(41,98,255,0.1); border-bottom:1px solid var(--line); font-size:12px;">
-        🟦 <b>Order Block haussier détecté</b><br>
+      <div style="padding:10px 15px; background:rgba(41,98,255,0.1); border-bottom:1px solid var(--line); font-size:13px;">
+        🟦 <b>Order Block haussier</b><br>
         Zone : ${fmt(ob.bottom)} - ${fmt(ob.top)}
       </div>
     `;
@@ -282,7 +298,7 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
     <div class="setup buy">
       <div class="setup-title">
         <span>🟢 Setup ACHAT</span>
-        ${trend === 'up' ? '<span style="font-size:10px;background:var(--up);color:#000;padding:2px 6px;border-radius:10px;">FAVORI</span>' : ''}
+        ${trend === 'up' ? '<span style="font-size:11px;background:var(--up);color:#000;padding:3px 8px;border-radius:12px;">FAVORI</span>' : ''}
       </div>
       <div class="trade-grid">
         <div class="cell"><small>Entrée</small><b>${fmt(lE)}</b></div>
@@ -295,7 +311,7 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
     <div class="setup sell">
       <div class="setup-title">
         <span>🔴 Setup VENTE</span>
-        ${trend === 'down' ? '<span style="font-size:10px;background:var(--down);color:#fff;padding:2px 6px;border-radius:10px;">FAVORI</span>' : ''}
+        ${trend === 'down' ? '<span style="font-size:11px;background:var(--down);color:#fff;padding:3px 8px;border-radius:12px;">FAVORI</span>' : ''}
       </div>
       <div class="trade-grid">
         <div class="cell"><small>Entrée</small><b>${fmt(sE)}</b></div>
@@ -310,10 +326,10 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
 }
 
 /* =========================================
-   5. DESSIN SUR LE GRAPHIQUE
+   DESSIN SUR LE GRAPHIQUE
    ========================================= */
 function drawLines(lE, lS, lT, sE, sS, sT) {
-  candleSeries.setData(currentData); // Reset
+  candleSeries.setData(currentData); 
   
   const addLine = (price, color, title, style) => {
     candleSeries.createPriceLine({
@@ -328,16 +344,15 @@ function drawLines(lE, lS, lT, sE, sS, sT) {
 }
 
 /* =========================================
-   6. LANCEMENT
+   LANCEMENT
    ========================================= */
-// On attend 100ms que le DOM soit prêt sur mobile
-setTimeout(() => {
+window.addEventListener('load', () => {
   initChart();
   fetchData();
   
   if (updateInterval) clearInterval(updateInterval);
   updateInterval = setInterval(fetchData, 5000);
-}, 100);
+});
 
 $('symbolSelect').addEventListener('change', (e) => {
   currentSymbol = e.target.value;
