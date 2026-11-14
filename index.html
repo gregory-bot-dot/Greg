@@ -3,13 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro</title>
+<title>ChartVision Pro — Précision Chirurgicale</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
     --bg:#0b0e14;--panel:#131722;--panel2:#1a1f2c;--line:#2f3a52;
-    --txt:#e8eef7;--muted:#8b94a8;--acc:#2962ff;--up:#26a69a;--down:#ef5350;
-    --fvg:#9c27b0; /* Violet pour les FVG */
+    --txt:#e8eef7;--muted:#8b94a8;--acc:#2962ff;--up:#26a69a;--down:#ef5350;--warn:#ff9800;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
   html,body{height:100%; margin:0; padding:0; overflow:hidden;}
@@ -71,10 +70,15 @@
     .panel{width:100%; height:45vh; border-left:none; border-top:1px solid var(--line);} 
   }
   
-  .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted); display:flex; justify-content:space-between;}
-  .setup{padding:12px 15px; border-bottom:1px solid var(--line);}
+  .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;}
+  
+  .setup{padding:12px 15px; border-bottom:1px solid var(--line); transition: 0.3s;}
   .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.08) 0%, transparent 100%);}
   .setup.sell{background:linear-gradient(180deg, rgba(239,83,80,0.08) 0%, transparent 100%);}
+  
+  /* Griser les setups contre-tendance */
+  .setup.counter-trend { opacity: 0.4; filter: grayscale(1); }
+  
   .setup-title{font-weight:bold; font-size:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;}
   .setup.buy .setup-title{color:var(--up)} .setup.sell .setup-title{color:var(--down)}
   
@@ -83,13 +87,14 @@
   .cell small{display:block; color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:2px;}
   .cell b{font-family:monospace; font-size:13px; color:#fff;}
   
+  /* Prix d'entrée en évidence */
+  .cell.precision { border-color: var(--acc); background: rgba(41,98,255,0.1); }
+  .cell.precision b { color: var(--acc); }
+
   .live-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--up); margin-right:6px; animation:pulse 1.5s infinite;}
   @keyframes pulse{ 0% { box-shadow: 0 0 0 0 rgba(38,166,154,0.7); } 70% { box-shadow: 0 0 0 6px rgba(38,166,154,0); } 100% { box-shadow: 0 0 0 0 rgba(38,166,154,0); } }
   
   .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:13px; }
-  
-  /* FVG BADGE */
-  .badge-fvg { background: rgba(156,39,176,0.2); color: #e1bee7; padding: 4px 8px; border-radius: 4px; font-size: 11px; margin-top: 5px; display: inline-block;}
 </style>
 </head>
 <body>
@@ -105,7 +110,6 @@
       <optgroup label="Indices">
         <option value="US500">🇺🇸 S&P 500</option>
         <option value="US100">🇺🇸 NASDAQ</option>
-        <option value="GER40">🇩🇪 DAX 40</option>
       </optgroup>
       <optgroup label="Forex">
         <option value="EURUSD">🇪🇺 EUR/USD</option>
@@ -121,6 +125,7 @@
       <option value="5m">5m</option>
       <option value="15m">15m</option>
       <option value="1h">1h</option>
+      <option value="4h">4h</option>
     </select>
   </div>
   
@@ -130,7 +135,7 @@
 </header>
 
 <div class="app">
-  <div id="toast">Objectif Atteint ! 🎯</div>
+  <div id="toast">Alerte</div>
   
   <div class="chart-container" id="chartContainer">
     <div id="chart"></div>
@@ -138,8 +143,8 @@
   
   <div class="panel">
     <div class="panel-header">
-      <div><span class="live-dot"></span> SMC Temps Réel</div>
-      <div id="fvgBadge" class="badge-fvg" style="display:none;">FVG Détecté</div>
+      <div><span class="live-dot"></span> Analyse SMC</div>
+      <div id="trendBadge" style="font-size:11px; padding:3px 8px; border-radius:10px; background:#222;">Filtre: ...</div>
     </div>
     <div id="analysisContent">
       <div class="loading-text">Initialisation...</div>
@@ -157,7 +162,7 @@ let currentTF = '5m';
 let currentPrice = 0;
 let updateInterval = null;
 let priceLines = []; 
-let currentSetup = null; // Pour stocker le setup actif et gérer les alertes
+let currentSetup = null; 
 let alertTriggered = false;
 
 // Charger les préférences
@@ -167,12 +172,12 @@ if(localStorage.getItem('cv_tf')) currentTF = localStorage.getItem('cv_tf');
 function getDecimals(symbol) {
   if(symbol.includes('JPY')) return 3;
   if(symbol === 'XAUUSD') return 2;
-  if(symbol === 'BTCUSD' || symbol === 'US500' || symbol === 'US100' || symbol === 'GER40') return 1;
+  if(symbol === 'BTCUSD' || symbol === 'US500' || symbol === 'US100') return 1;
   return 5;
 }
 
 /* =========================================
-   INITIALISATION
+   INITIALISATION DU GRAPHIQUE
    ========================================= */
 function initChart() {
   const chartContainer = $('chart');
@@ -197,7 +202,6 @@ function initChart() {
   });
   resizeObserver.observe(chartContainer);
   
-  // Restaurer l'UI
   $('symbolSelect').value = currentSymbol;
   $('tfSelect').value = currentTF;
 }
@@ -220,7 +224,7 @@ async function fetchData() {
       response = await fetch(proxy1);
       if (!response.ok) throw new Error("Proxy1 fail");
     } catch (e2) {
-      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Erreur réseau. Marché fermé ?</div>`;
+      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Réseau indisponible ou marché fermé.</div>`;
       return;
     }
   }
@@ -230,7 +234,7 @@ async function fetchData() {
     const bars = result.bars || [];
     
     if (bars.length === 0) {
-      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--warn)">Marché fermé ou aucune donnée.</div>`;
+      $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--warn)">Marché fermé.</div>`;
       return;
     }
 
@@ -254,154 +258,160 @@ async function fetchData() {
     currentData = uniqueData.sort((a, b) => a.time - b.time);
     candleSeries.setData(currentData);
     
-    // Ne pas scroller si on est en train de regarder l'historique
     if (currentData.length > 0) {
         currentPrice = currentData[currentData.length - 1].close;
         analyzeSMC();
     }
     
   } catch (err) {
-    $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Erreur formatage.</div>`;
+    $('analysisContent').innerHTML = `<div class="loading-text" style="color:var(--down)">Erreur de formatage.</div>`;
   }
 }
 
 /* =========================================
-   ANALYSE SMC COMPLETE
+   ANALYSE SMC PRÉCISE & FILTRE DE TENDANCE
    ========================================= */
 function analyzeSMC() {
-  if (currentData.length < 10) return;
+  if (currentData.length < 50) return;
 
   try {
-    // 1. Détection Swings
-    const swings = [];
-    for (let i = 2; i < currentData.length - 2; i++) {
-      const c = currentData[i];
-      if (c.high > currentData[i-1].high && c.high > currentData[i+1].high) swings.push({ index: i, price: c.high, type: 'H' });
-      if (c.low < currentData[i-1].low && c.low < currentData[i+1].low) swings.push({ index: i, price: c.low, type: 'L' });
+    // 1. Calcul de l'EMA 50 pour le filtre de tendance
+    const ema50 = calculateEMA(50);
+    const isTrendUp = currentPrice > ema50;
+    const isTrendDown = currentPrice < ema50;
+    
+    // Mise à jour du badge de tendance
+    const trendBadge = $('trendBadge');
+    if (isTrendUp) {
+        trendBadge.textContent = "Tendance: HAUSSIÈRE";
+        trendBadge.style.background = "rgba(38,166,154,0.2)";
+        trendBadge.style.color = "var(--up)";
+    } else {
+        trendBadge.textContent = "Tendance: BAISSIÈRE";
+        trendBadge.style.background = "rgba(239,83,80,0.2)";
+        trendBadge.style.color = "var(--down)";
     }
 
-    // 2. Tendance
-    const highs = swings.filter(s => s.type === 'H');
-    const lows = swings.filter(s => s.type === 'L');
-    let trend = 'neutral';
-    if (highs.length >= 2 && lows.length >= 2) {
-      if (highs[highs.length-1].price > highs[highs.length-2].price && lows[lows.length-1].price > lows[lows.length-2].price) trend = 'up';
-      if (highs[highs.length-1].price < highs[highs.length-2].price && lows[lows.length-1].price < lows[lows.length-2].price) trend = 'down';
-    }
-
-    // 3. Order Blocks (Haussier et Baissier)
+    // 2. Détection des Order Blocks
     let lastOBbull = null;
     let lastOBbear = null;
-    for (let i = currentData.length - 10; i < currentData.length - 1; i++) {
+    
+    // On cherche dans les 15 dernières bougies pour trouver l'OB le plus frais
+    for (let i = currentData.length - 15; i < currentData.length - 1; i++) {
       const c = currentData[i];
       const prev = currentData[i-1];
-      // OB Haussier : Rouge puis grosse Verte
+      
+      // OB Haussier (Rouge -> Grosse Verte)
       if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
         lastOBbull = { top: prev.high, bottom: prev.low };
       }
-      // OB Baissier : Verte puis grosse Rouge
+      // OB Baissier (Verte -> Grosse Rouge)
       if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
         lastOBbear = { top: prev.high, bottom: prev.low };
       }
     }
 
-    // 4. Fair Value Gaps (FVG)
-    let currentFVG = null;
-    for (let i = currentData.length - 15; i < currentData.length - 2; i++) {
-      const c1 = currentData[i];
-      const c3 = currentData[i+2];
-      // FVG Haussier
-      if (c1.high < c3.low) currentFVG = { type: 'bullish', top: c3.low, bottom: c1.high };
-      // FVG Baissier
-      if (c1.low > c3.high) currentFVG = { type: 'bearish', top: c1.low, bottom: c3.high };
-    }
-
-    // 5. Calcul des setups avec R:R = 2.0 EXACTEMENT
+    // 3. Calcul chirurgical des setups (Entrée à 50% de l'OB)
     
     // --- SETUP ACHAT ---
-    let longEntry = lastOBbull ? lastOBbull.top : currentPrice * 0.999;
-    let longSL = lastOBbull ? lastOBbull.bottom : longEntry * 0.998; // Si pas d'OB, SL = 0.2% sous l'entrée
+    let longEntry, longSL, longTP;
+    if (lastOBbull) {
+        // Entrée au milieu exact de l'Order Block
+        longEntry = lastOBbull.top - ((lastOBbull.top - lastOBbull.bottom) / 2);
+        // Stop Loss juste en dessous de l'OB
+        longSL = lastOBbull.bottom - (lastOBbull.bottom * 0.0002); 
+    } else {
+        longEntry = currentPrice * 0.999;
+        longSL = longEntry * 0.998;
+    }
     let riskLong = Math.abs(longEntry - longSL);
-    if(riskLong === 0) riskLong = currentPrice * 0.001; // Sécurité
-    let longTP = longEntry + (riskLong * 2); // R:R = 2.0 exact
+    longTP = longEntry + (riskLong * 2); // R:R 2.0
 
     // --- SETUP VENTE ---
-    let shortEntry = lastOBbear ? lastOBbear.bottom : currentPrice * 1.001;
-    let shortSL = lastOBbear ? lastOBbear.top : shortEntry * 1.002;
+    let shortEntry, shortSL, shortTP;
+    if (lastOBbear) {
+        // Entrée au milieu exact de l'Order Block
+        shortEntry = lastOBbear.bottom + ((lastOBbear.top - lastOBbear.bottom) / 2);
+        // Stop Loss juste au dessus de l'OB
+        shortSL = lastOBbear.top + (lastOBbear.top * 0.0002);
+    } else {
+        shortEntry = currentPrice * 1.001;
+        shortSL = shortEntry * 1.002;
+    }
     let riskShort = Math.abs(shortEntry - shortSL);
-    if(riskShort === 0) riskShort = currentPrice * 0.001;
-    let shortTP = shortEntry - (riskShort * 2); // R:R = 2.0 exact
+    shortTP = shortEntry - (riskShort * 2); // R:R 2.0
 
-    // Sauvegarde pour les alertes
     currentSetup = {
-        favored: trend === 'up' ? 'long' : (trend === 'down' ? 'short' : 'none'),
+        trend: isTrendUp ? 'up' : 'down',
         long: { entry: longEntry, sl: longSL, tp: longTP },
         short: { entry: shortEntry, sl: shortSL, tp: shortTP }
     };
 
-    renderPanel(trend, lastOBbull, longEntry, longSL, longTP, shortEntry, shortSL, shortTP);
-    drawLinesAndFVG(lastOBbull, longEntry, longSL, longTP, shortEntry, shortSL, shortTP, currentFVG);
+    renderPanel(isTrendUp, lastOBbull, lastOBbear, longEntry, longSL, longTP, shortEntry, shortSL, shortTP);
+    drawLines(longEntry, longSL, longTP, shortEntry, shortSL, shortTP, isTrendUp);
 
   } catch(e) {
     console.error("Erreur d'analyse:", e);
   }
 }
 
+// Fonction utilitaire pour l'EMA
+function calculateEMA(period) {
+    if(currentData.length < period) return currentPrice;
+    const k = 2 / (period + 1);
+    let ema = currentData.slice(0, period).reduce((acc, c) => acc + c.close, 0) / period;
+    for (let i = period; i < currentData.length; i++) {
+        ema = (currentData[i].close - ema) * k + ema;
+    }
+    return ema;
+}
+
 /* =========================================
    AFFICHAGE HTML
    ========================================= */
-function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
+function renderPanel(isTrendUp, obBull, obBear, lE, lS, lT, sE, sS, sT) {
   const dec = getDecimals(currentSymbol);
   const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
   
-  const trendColor = trend === 'up' ? 'var(--up)' : trend === 'down' ? 'var(--down)' : 'var(--warn)';
-  const trendText = trend === 'up' ? 'HAUSSIÈRE' : trend === 'down' ? 'BAISSIÈRE' : 'NEUTRE';
+  // Classes pour griser les setups contre-tendance
+  const longClass = isTrendUp ? 'buy' : 'buy counter-trend';
+  const shortClass = !isTrendUp ? 'sell' : 'sell counter-trend';
 
   let html = `
     <div style="padding:12px 15px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
       <div>
-        <div style="font-size:12px; color:var(--muted);">Prix : ${fmt(currentPrice)}</div>
-        <div style="font-size:16px; font-weight:bold; color:${trendColor}">${trendText}</div>
+        <div style="font-size:12px; color:var(--muted);">Prix actuel</div>
+        <div style="font-size:16px; font-weight:bold;">${fmt(currentPrice)}</div>
       </div>
       <div style="text-align:right; font-size:11px; color:var(--muted);">
-        R:R Fixé à <b>2.0</b>
+        Filtre EMA 50<br><b>R:R Fixé à 2.0</b>
       </div>
     </div>
   `;
 
-  if (ob) {
-    html += `
-      <div style="padding:8px 15px; background:rgba(41,98,255,0.1); border-bottom:1px solid var(--line); font-size:12px;">
-        🟦 <b>Order Block Haussier</b><br>
-        <span style="color:var(--muted)">Zone : ${fmt(ob.bottom)} - ${fmt(ob.top)}</span>
-      </div>
-    `;
-  }
-
+  // SETUP ACHAT
   html += `
-    <div class="setup buy" style="${trend === 'up' ? 'border-left:3px solid var(--up)' : ''}">
+    <div class="setup ${longClass}">
       <div class="setup-title">
-        <span>🟢 ACHAT</span>
-        ${trend === 'up' ? '<span style="font-size:10px;background:var(--up);color:#000;padding:2px 6px;border-radius:10px;">FAVORI</span>' : ''}
+        <span>🟢 ACHAT (50% OB)</span>
+        ${isTrendUp ? '<span style="font-size:10px;background:var(--up);color:#000;padding:2px 6px;border-radius:10px;">FAVORI</span>' : '<span style="font-size:10px;color:var(--down);">⚠ Contre-tendance</span>'}
       </div>
       <div class="trade-grid">
-        <div class="cell"><small>Entrée</small><b>${fmt(lE)}</b></div>
+        <div class="cell precision"><small>Entrée Chirurgicale</small><b>${fmt(lE)}</b></div>
         <div class="cell"><small>Stop-Loss</small><b>${fmt(lS)}</b></div>
-        <div class="cell"><small>Take-Profit</small><b>${fmt(lT)}</b></div>
-        <div class="cell"><small>R:R</small><b>2.00</b></div>
+        <div class="cell"><small>Take-Profit (R:R 2)</small><b>${fmt(lT)}</b></div>
       </div>
     </div>
 
-    <div class="setup sell" style="${trend === 'down' ? 'border-left:3px solid var(--down)' : ''}">
+    <div class="setup ${shortClass}">
       <div class="setup-title">
-        <span>🔴 VENTE</span>
-        ${trend === 'down' ? '<span style="font-size:10px;background:var(--down);color:#fff;padding:2px 6px;border-radius:10px;">FAVORI</span>' : ''}
+        <span>🔴 VENTE (50% OB)</span>
+        ${!isTrendUp ? '<span style="font-size:10px;background:var(--down);color:#fff;padding:2px 6px;border-radius:10px;">FAVORI</span>' : '<span style="font-size:10px;color:var(--up);">⚠ Contre-tendance</span>'}
       </div>
       <div class="trade-grid">
-        <div class="cell"><small>Entrée</small><b>${fmt(sE)}</b></div>
+        <div class="cell precision"><small>Entrée Chirurgicale</small><b>${fmt(sE)}</b></div>
         <div class="cell"><small>Stop-Loss</small><b>${fmt(sS)}</b></div>
-        <div class="cell"><small>Take-Profit</small><b>${fmt(sT)}</b></div>
-        <div class="cell"><small>R:R</small><b>2.00</b></div>
+        <div class="cell"><small>Take-Profit (R:R 2)</small><b>${fmt(sT)}</b></div>
       </div>
     </div>
   `;
@@ -410,54 +420,35 @@ function renderPanel(trend, ob, lE, lS, lT, sE, sS, sT) {
 }
 
 /* =========================================
-   DESSIN SUR LE GRAPHIQUE ET ALERTES
+   DESSIN SUR LE GRAPHIQUE (UNIQUEMENT LE FAVORI)
    ========================================= */
-function drawLinesAndFVG(ob, lE, lS, lT, sE, sS, sT, fvg) {
-  // Nettoyage
+function drawLines(lE, lS, lT, sE, sS, sT, isTrendUp) {
   priceLines.forEach(line => candleSeries.removePriceLine(line));
   priceLines = [];
   
   const addLine = (price, color, title, style) => {
-    const line = candleSeries.createPriceLine({ price, color, lineWidth: 1, lineStyle: style, axisLabelVisible: true, title });
+    const line = candleSeries.createPriceLine({ price, color, lineWidth: 2, lineStyle: style, axisLabelVisible: true, title });
     priceLines.push(line);
   };
 
-  // Lignes du Setup Favori
-  if (currentSetup.favored === 'long') {
+  // On affiche uniquement les lignes du setup favori pour rester épuré
+  if (isTrendUp) {
       addLine(lE, '#2962ff', 'Entrée', LightweightCharts.LineStyle.Solid);
       addLine(lS, '#ef5350', 'SL', LightweightCharts.LineStyle.Dashed);
-      addLine(lT, '#26a69a', 'TP', LightweightCharts.LineStyle.Dashed);
-  } else if (currentSetup.favored === 'short') {
+      addLine(lT, '#26a69a', 'TP (RR2)', LightweightCharts.LineStyle.Dashed);
+  } else {
       addLine(sE, '#2962ff', 'Entrée', LightweightCharts.LineStyle.Solid);
       addLine(sS, '#ef5350', 'SL', LightweightCharts.LineStyle.Dashed);
-      addLine(sT, '#26a69a', 'TP', LightweightCharts.LineStyle.Dashed);
+      addLine(sT, '#26a69a', 'TP (RR2)', LightweightCharts.LineStyle.Dashed);
   }
 
-  // Dessin des FVG
-  if (fvg) {
-      $('fvgBadge').style.display = 'inline-block';
-      addLine(fvg.top, '#9c27b0', 'FVG Top', LightweightCharts.LineStyle.Dotted);
-      addLine(fvg.bottom, '#9c27b0', 'FVG Bot', LightweightCharts.LineStyle.Dotted);
-  } else {
-      $('fvgBadge').style.display = 'none';
-  }
-
-  // GESTION DES ALERTES (Vibrations + Toast)
-  if ($('alertToggle').checked && currentSetup.favored !== 'none' && !alertTriggered) {
-      const setup = currentSetup[currentSetup.favored];
+  // GESTION DES ALERTES
+  if ($('alertToggle').checked && !alertTriggered) {
+      const setup = isTrendUp ? currentSetup.long : currentSetup.short;
       
-      // Si le prix actuel atteint le TP (à 0.05% près)
-      if (Math.abs(currentPrice - setup.tp) < (currentPrice * 0.0005)) {
-          triggerAlert("Objectif TP Atteint ! 🎯", "var(--up)");
-      }
-      // Si le prix touche le SL
-      if (Math.abs(currentPrice - setup.sl) < (currentPrice * 0.0005)) {
-          triggerAlert("Stop-Loss Touché ! 🛑", "var(--down)");
-      }
-      // Si le prix touche l'Entrée
-      if (Math.abs(currentPrice - setup.entry) < (currentPrice * 0.0002)) {
-          triggerAlert("Prix à l'Entrée ! ⚡", "var(--acc)");
-      }
+      if (Math.abs(currentPrice - setup.tp) < (currentPrice * 0.0005)) triggerAlert("Objectif TP Atteint ! 🎯", "var(--up)");
+      if (Math.abs(currentPrice - setup.sl) < (currentPrice * 0.0005)) triggerAlert("Stop-Loss Touché ! 🛑", "var(--down)");
+      if (Math.abs(currentPrice - setup.entry) < (currentPrice * 0.0002)) triggerAlert("Prix à l'Entrée ! ⚡", "var(--acc)");
   }
 }
 
@@ -467,18 +458,13 @@ function triggerAlert(msg, color) {
     toast.textContent = msg;
     toast.style.background = color;
     toast.style.display = 'block';
-    
-    // Vibration mobile
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-    
     setTimeout(() => { toast.style.display = 'none'; }, 4000);
-    
-    // Reset de l'alerte après 1 minute pour éviter de spammer
     setTimeout(() => { alertTriggered = false; }, 60000);
 }
 
 /* =========================================
-   LANCEMENT ET ÉVÉNEMENTS
+   LANCEMENT
    ========================================= */
 window.addEventListener('load', () => {
   initChart();
@@ -493,6 +479,7 @@ $('symbolSelect').addEventListener('change', (e) => {
   currentSymbol = e.target.value;
   localStorage.setItem('cv_symbol', currentSymbol);
   $('analysisContent').innerHTML = '<div class="loading-text">Chargement...</div>';
+  alertTriggered = false;
   fetchData();
 });
 
@@ -500,12 +487,9 @@ $('tfSelect').addEventListener('change', (e) => {
   currentTF = e.target.value;
   localStorage.setItem('cv_tf', currentTF);
   $('analysisContent').innerHTML = '<div class="loading-text">Chargement...</div>';
+  alertTriggered = false;
   fetchData();
 });
-
-// Réinitialiser l'alerte quand on change les paramètres
-$('symbolSelect').addEventListener('change', () => { alertTriggered = false; });
-$('tfSelect').addEventListener('change', () => { alertTriggered = false; });
 </script>
 </body>
 </html>
