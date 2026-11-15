@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — SMC Journal</title>
+<title>ChartVision Pro — SMC</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -89,7 +89,6 @@
 
   .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:13px; }
 
-  /* JOURNAL DES TRADES */
   #journalContent { padding: 10px 15px; display: flex; flex-direction: column; gap: 6px; background: var(--panel); }
   .journal-item {
     display: flex; justify-content: space-between; align-items: center;
@@ -171,7 +170,6 @@
     <div class="panel-header"><div>Trade Actif</div></div>
     <div id="analysisContent"><div class="loading-text">Initialisation...</div></div>
 
-    <!-- JOURNAL DES TRADES -->
     <div class="panel-header">
       <span>Journal des trades</span>
       <button id="btnClearJournal" style="background:none; border:none; color:var(--muted); font-size:10px; cursor:pointer;">Effacer</button>
@@ -205,7 +203,6 @@ let tradeHistory = [];
 let tradeJournal = []; 
 let showHistoryLines = true;
 
-// Variable pour éviter de re-trader le même Order Block
 let lastTradedOBTime = 0; 
 
 const overlayCanvas = $('overlayCanvas');
@@ -488,7 +485,6 @@ function analyzeSMC() {
         for (let i = closedCandles.length - 3; i >= closedCandles.length - 40; i--) {
             const c = closedCandles[i]; const prev = closedCandles[i-1];
             
-            // On ignore l'Order Block si on l'a déjà tradé (évite les doublons)
             if (c.time === lastTradedOBTime) continue;
 
             let isCHoCH = false;
@@ -513,8 +509,13 @@ function analyzeSMC() {
                 const bodySize = Math.abs(c.close - c.open);
                 const totalWick = c.high - c.low;
                 
-                if (c.volume > 0 && c.volume > volSMA * 1.5) { confluenceScore++; confluenceDetails.volume = true; }
-                else if (c.volume === 0) { confluenceDetails.volume = true; }
+                // Filtre Volume : On ne le rend vert que si c'est vrai pour le BTC, ou si le volume est 0 pour le Forex
+                if (currentSymbol === 'BTCUSD' || currentSymbol === 'US500' || currentSymbol === 'US100') {
+                    if (c.volume > volSMA * 1.5) { confluenceScore++; confluenceDetails.volume = true; }
+                } else {
+                    if (c.volume === 0) { confluenceDetails.volume = true; }
+                    else if (c.volume > volSMA * 1.5) { confluenceScore++; confluenceDetails.volume = true; }
+                }
                 
                 if (bodySize > totalWick * 0.6 && bodySize > atr * 1.2) { confluenceScore++; confluenceDetails.displacement = true; }
                 
@@ -545,8 +546,9 @@ function analyzeSMC() {
                 direction: trends.current,
                 entry: validOB.entry, sl: validOB.sl,
                 tp: isCurrentUp ? validOB.entry + (Math.abs(validOB.entry - validOB.sl) * 2) : validOB.entry - (Math.abs(validOB.entry - validOB.sl) * 2),
-                startTime: validOB.time, // On utilise l'heure de l'OB pour dessiner
-                obTime: validOB.time
+                startTime: validOB.time,
+                obTime: validOB.time,
+                entryTouched: false // NOUVEAU : Mémorise si le prix a touché l'entrée
             };
             tradeState = 'ACTIVE';
             updateTradeStatus(currentPrice, isCurrentUp);
@@ -563,41 +565,22 @@ function analyzeSMC() {
   } catch(e) { console.error("Erreur:", e); }
 }
 
-/* =========================================
-   SAUVEGARDE DU TRADE & JOURNAL
-   ========================================= */
 function saveLastTrade(setup, result, endTime) {
     const tradeData = {
-        entry: setup.entry,
-        sl: setup.sl,
-        tp: setup.tp,
-        type: setup.type,
-        result: result,
-        endTime: endTime
+        entry: setup.entry, sl: setup.sl, tp: setup.tp, type: setup.type, result: result, endTime: endTime
     };
 
     lastTrade = tradeData;
-
-    // Mémoriser qu'on a tradé cet OB pour ne pas le reprendre
     lastTradedOBTime = setup.obTime;
 
-    // 1. Ajout à l'historique visuel
     tradeHistory.push({
-        startTime: setup.startTime,
-        endTime: endTime,
-        entry: setup.entry,
-        sl: setup.sl,
-        tp: setup.tp,
-        type: setup.type,
-        result: result
+        startTime: setup.startTime, endTime: endTime, entry: setup.entry, sl: setup.sl, tp: setup.tp, type: setup.type, result: result
     });
     if (tradeHistory.length > 10) tradeHistory.shift();
 
-    // 2. Ajout au Journal textuel
     tradeJournal.push(tradeData);
     if (tradeJournal.length > 20) tradeJournal.shift();
 
-    // UI
     $('lastTradeBox').style.display = 'block';
     const dec = getDecimals(currentSymbol);
     const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
@@ -666,19 +649,34 @@ function updateTradeStatus(price, isCurrentUp, timeLeftStr) {
     const tolerance = price * 0.0002; 
     const isBuy = setup.type === 'buy';
 
+    // Si le prix touche le TP
     if ((isBuy && price >= setup.tp) || (!isBuy && price <= setup.tp)) {
         statusDiv.textContent = `🎯 TP atteint !`; statusDiv.classList.add('status-progress'); return;
     }
 
+    // Si le prix touche l'Entrée (on mémorise que c'est fait)
     if (price >= setup.entry - tolerance && price <= setup.entry + tolerance) {
+        lockedSetup.entryTouched = true;
+    }
+
+    // Si l'entrée a été touchée
+    if (lockedSetup.entryTouched) {
         let isConfluent = (isBuy && trends.htf1 === 'up' && trends.htf2 === 'up') || (!isBuy && trends.htf1 === 'down' && trends.htf2 === 'down');
         let conflict = (isBuy && (trends.htf1 === 'down' || trends.htf2 === 'down')) || (!isBuy && (trends.htf1 === 'up' || trends.htf2 === 'up'));
-        if (conflict) { statusDiv.textContent = `⚠️ Entrée atteinte, CONFLIT MTF`; statusDiv.classList.add('status-wait'); }
-        else if (isConfluent) { statusDiv.textContent = `🔥 CONFLUENCE PARFAITE !`; statusDiv.classList.add('status-confluence'); }
-        else { statusDiv.textContent = `⚡ ZONE D'ENTRÉE !`; statusDiv.classList.add('status-entry'); }
+        
+        if (conflict && Math.abs(price - setup.entry) <= tolerance) { 
+            statusDiv.textContent = `⚠️ Entrée atteinte, CONFLIT MTF`; statusDiv.classList.add('status-wait'); 
+        }
+        else if (isConfluent && Math.abs(price - setup.entry) <= tolerance) { 
+            statusDiv.textContent = `🔥 CONFLUENCE PARFAITE !`; statusDiv.classList.add('status-confluence'); 
+        }
+        else { 
+            statusDiv.textContent = `🚀 Trade en cours...`; statusDiv.classList.add('status-progress'); 
+        }
         return;
     }
 
+    // Si on n'a pas encore touché l'entrée
     if ((isBuy && price > setup.entry) || (!isBuy && price < setup.entry)) {
         statusDiv.textContent = `⏳ Attendre le repli vers ${setup.entry.toFixed(2)}`; statusDiv.classList.add('status-wait');
     } else {
