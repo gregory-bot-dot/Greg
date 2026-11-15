@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — Patience</title>
+<title>ChartVision Pro</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -14,6 +14,7 @@
   html,body{height:100%; margin:0; padding:0; overflow:hidden;}
   body{ background:var(--bg); color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:flex; flex-direction:column; }
   
+  /* HEADER */
   header{ padding:10px 15px; background:#0e1219; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   header h1{font-size:18px;margin:0;font-weight:700; white-space:nowrap;}
   header h1 span{color:var(--acc)}
@@ -25,43 +26,47 @@
     appearance: none; background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%238b94a8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
     background-repeat: no-repeat; background-position: right 10px top 50%; background-size: 10px auto;
   }
-  .alert-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; padding: 4px 8px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line); }
   
+  /* LAYOUT */
   .app{display:flex; flex:1; overflow:hidden; position:relative;}
   @media(max-width:900px){ .app{flex-direction:column;} }
   
-  #toast { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: var(--acc); color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 13px; z-index: 100; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5); animation: pop 0.3s ease; }
-  @keyframes pop { 0% { transform: translate(-50%, -10px); opacity: 0; } 100% { transform: translate(-50%, 0); opacity: 1; } }
-
   .chart-container{ flex:1; position:relative; background:#05080c; min-height: 300px; }
   #chart{ position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
   
+  /* PANNEAU */
   .panel{ width:340px; background:var(--panel); border-left:1px solid var(--line); display:flex; flex-direction:column; overflow-y:auto; }
-  @media(max-width:900px){ .panel{width:100%; height:50vh; border-left:none; border-top:1px solid var(--line);} }
+  @media(max-width:900px){ .panel{width:100%; height:55vh; border-left:none; border-top:1px solid var(--line);} }
   
+  /* BADGES MTF DYNAMIQUES */
   .mtf-row { display: flex; gap: 6px; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.2); }
   .mtf-badge { flex: 1; text-align: center; padding: 6px; border-radius: 6px; font-size: 11px; font-weight: bold; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); }
   .mtf-badge.up { border-color: var(--up); color: var(--up); background: rgba(38,166,154,0.1); }
   .mtf-badge.down { border-color: var(--down); color: var(--down); background: rgba(239,83,80,0.1); }
 
+  /* STATUT */
   #tradeStatus { padding: 12px 15px; font-weight: bold; font-size: 13px; text-align: center; border-bottom: 1px solid var(--line); transition: 0.3s; }
   .status-wait { background: rgba(255,152,0,0.15); color: var(--warn); }
   .status-entry { background: rgba(41,98,255,0.2); color: var(--acc); border-left: 4px solid var(--acc); }
   .status-progress { background: rgba(38,166,154,0.15); color: var(--up); }
   .status-invalid { background: rgba(239,83,80,0.15); color: var(--down); }
-  .status-done { background: rgba(38,166,154,0.3); color: #fff; border-left: 4px solid var(--up); }
   .status-cooldown { background: rgba(139,148,168,0.15); color: var(--muted); border-left: 4px solid var(--muted); }
 
-  .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;}
+  /* DERNIER TRADE */
+  #lastTradeBox { display: none; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.3); font-size: 12px; }
+  .lt-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; }
+  .lt-grid { display: flex; justify-content: space-between; }
+  .lt-item b { font-family: monospace; color: #fff; }
+  .lt-result { font-weight: bold; text-align: right; }
+
+  .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted);}
   
-  /* Un seul setup affiché */
-  .setup{padding:15px; border-bottom:1px solid var(--line); transition: 0.3s;}
+  /* SETUP ACTIF */
+  .setup{padding:15px; border-bottom:1px solid var(--line);}
   .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.1) 0%, transparent 100%); border-left: 4px solid var(--up);}
   .setup.sell{background:linear-gradient(180deg, rgba(239,83,80,0.1) 0%, transparent 100%); border-left: 4px solid var(--down);}
   
-  .setup-title{font-weight:bold; font-size:15px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;}
-  .setup.buy .setup-title{color:var(--up)} .setup.sell .setup-title{color:var(--down)}
-  
+  .setup-title{font-weight:bold; font-size:15px; margin-bottom:12px; color: #fff;}
   .trade-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
   .cell{background:rgba(0,0,0,0.3); padding:10px; border-radius:4px; border:1px solid var(--line);}
   .cell small{display:block; color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:2px;}
@@ -69,8 +74,6 @@
   .cell.precision { border-color: var(--acc); background: rgba(41,98,255,0.15); }
   .cell.precision b { color: var(--acc); font-size:15px;}
 
-  .live-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--up); margin-right:6px; animation:pulse 1.5s infinite;}
-  @keyframes pulse{ 0% { box-shadow: 0 0 0 0 rgba(38,166,154,0.7); } 70% { box-shadow: 0 0 0 6px rgba(38,166,154,0); } 100% { box-shadow: 0 0 0 0 rgba(38,166,154,0); } }
   .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:13px; }
 </style>
 </head>
@@ -81,9 +84,9 @@
   <div class="controls">
     <select id="symbolSelect">
       <option value="XAUUSD">🥇 XAU/USD</option>
-      <option value="US500">🇺🇸 S&P 500</option>
-      <option value="EURUSD">🇪🇺 EUR/USD</option>
       <option value="BTCUSD">₿ BTC/USD</option>
+      <option value="EURUSD">🇪🇺 EUR/USD</option>
+      <option value="US500">🇺🇸 S&P 500</option>
     </select>
     <select id="tfSelect">
       <option value="1m">1m</option>
@@ -93,24 +96,34 @@
       <option value="4h">4h</option>
     </select>
   </div>
-  <label class="alert-toggle"><input type="checkbox" id="alertToggle"> Alertes</label>
 </header>
 
 <div class="app">
-  <div id="toast">Alerte</div>
   <div class="chart-container" id="chartContainer"><div id="chart"></div></div>
   
   <div class="panel">
+    <!-- BADGES MTF -->
     <div class="mtf-row">
       <div class="mtf-badge" id="badge-current">...</div>
-      <div class="mtf-badge" id="badge-15m">...</div>
-      <div class="mtf-badge" id="badge-4h">...</div>
+      <div class="mtf-badge" id="badge-htf1">...</div>
+      <div class="mtf-badge" id="badge-htf2">...</div>
     </div>
 
     <div id="tradeStatus" class="status-wait">Calcul du statut...</div>
 
+    <!-- JOURNAL DU DERNIER TRADE -->
+    <div id="lastTradeBox">
+      <div class="lt-title">Dernier trade terminé</div>
+      <div class="lt-grid">
+        <div class="lt-item"><small>Entrée</small><br><b id="lt-entry">-</b></div>
+        <div class="lt-item"><small>SL</small><br><b id="lt-sl">-</b></div>
+        <div class="lt-item"><small>TP</small><br><b id="lt-tp">-</b></div>
+        <div class="lt-item lt-result" id="lt-result">-</div>
+      </div>
+    </div>
+
     <div class="panel-header">
-      <div><span class="live-dot"></span> Trade Actif</div>
+      <div>Trade Actif</div>
     </div>
     <div id="analysisContent">
       <div class="loading-text">Initialisation...</div>
@@ -128,14 +141,17 @@ let currentPrice = 0;
 let updateInterval = null;
 let htfInterval = null;
 let priceLines = []; 
-let alertTriggered = false;
 
-let trends = { current: 'neutral', m15: 'neutral', h4: 'neutral' };
+// Variables de tendance
+let trends = { current: 'neutral', htf1: 'neutral', htf2: 'neutral' };
+let currentHtf1 = '15m';
+let currentHtf2 = '4h';
 
-// State Machine pour la gestion des trades
+// Variables de trade
 let lockedSetup = null;
-let tradeState = 'IDLE'; // 'IDLE', 'ACTIVE', 'COOLDOWN'
+let tradeState = 'IDLE'; 
 let cooldownCounter = 0;
+let lastTrade = null; // Stocke le trade terminé
 
 if(localStorage.getItem('cv_symbol')) currentSymbol = localStorage.getItem('cv_symbol');
 if(localStorage.getItem('cv_tf')) currentTF = localStorage.getItem('cv_tf');
@@ -145,6 +161,25 @@ function getDecimals(symbol) {
   if(symbol === 'XAUUSD') return 2;
   if(symbol === 'BTCUSD' || symbol === 'US500' || symbol === 'US100') return 1;
   return 5;
+}
+
+/* =========================================
+   LOGIQUE MTF (Timeframes supérieurs adaptatifs)
+   ========================================= */
+function updateHTFTargets() {
+    if (currentTF === '1m' || currentTF === '5m') {
+        currentHtf1 = '15m'; currentHtf2 = '4h';
+    } else if (currentTF === '15m') {
+        currentHtf1 = '1h'; currentHtf2 = '4h';
+    } else if (currentTF === '1h') {
+        currentHtf1 = '4h'; currentHtf2 = '1d'; 
+    } else if (currentTF === '4h') {
+        currentHtf1 = '1d'; currentHtf2 = null; // Pas de timeframe supérieur dispo sur l'API
+    }
+    
+    // Mise à jour des labels
+    $('badge-htf1').textContent = currentHtf1 || '--';
+    $('badge-htf2').textContent = currentHtf2 || '--';
 }
 
 function initChart() {
@@ -163,8 +198,10 @@ function initChart() {
     chart.applyOptions({ width: newRect.width, height: newRect.height });
   });
   resizeObserver.observe(chartContainer);
+  
   $('symbolSelect').value = currentSymbol;
   $('tfSelect').value = currentTF;
+  updateHTFTargets();
 }
 
 async function fetchUrl(targetUrl) {
@@ -189,10 +226,14 @@ function getTrend(data) {
 }
 
 async function fetchHTF() {
-    const res15 = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=15m&limit=100&t=${Date.now()}`);
-    if (res15 && res15.bars) { trends.m15 = getTrend(res15.bars); updateBadge('badge-15m', '15m', trends.m15); }
-    const res4h = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=4h&limit=100&t=${Date.now()}`);
-    if (res4h && res4h.bars) { trends.h4 = getTrend(res4h.bars); updateBadge('badge-4h', '4h', trends.h4); }
+    if (currentHtf1) {
+        const res = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentHtf1}&limit=100&t=${Date.now()}`);
+        if (res && res.bars) { trends.htf1 = getTrend(res.bars); updateBadge('badge-htf1', currentHtf1, trends.htf1); }
+    }
+    if (currentHtf2) {
+        const res = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentHtf2}&limit=100&t=${Date.now()}`);
+        if (res && res.bars) { trends.htf2 = getTrend(res.bars); updateBadge('badge-htf2', currentHtf2, trends.htf2); }
+    }
 }
 
 function updateBadge(id, label, trend) {
@@ -226,14 +267,14 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC & COOLDOWN
+   LOGIQUE SMC & GESTION DU DERNIER TRADE
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 50) return;
   try {
     const isCurrentUp = trends.current === 'up';
 
-    // --- GESTION DU COOLDOWN (Attente après un trade) ---
+    // 1. GESTION DU COOLDOWN
     if (tradeState === 'COOLDOWN') {
         cooldownCounter--;
         if (cooldownCounter <= 0) {
@@ -241,30 +282,29 @@ function analyzeSMC() {
             lockedSetup = null;
         } else {
             updateTradeStatus(currentPrice, isCurrentUp);
-            drawLines(null); // Aucune ligne pendant le cooldown
-            return; // On ne cherche pas de nouveau trade
+            drawLines(null);
+            return; 
         }
     }
 
-    // --- GESTION DU TRADE ACTIF ---
+    // 2. GESTION DU TRADE ACTIF
     if (tradeState === 'ACTIVE' && lockedSetup) {
-        // Si la tendance s'inverse complètement, on annule
         if (lockedSetup.direction !== trends.current) {
             lockedSetup = null; tradeState = 'IDLE';
         } else {
             // Vérifier TP
             if ((lockedSetup.type === 'buy' && currentPrice >= lockedSetup.tp) || 
                 (lockedSetup.type === 'sell' && currentPrice <= lockedSetup.tp)) {
-                tradeState = 'COOLDOWN';
-                cooldownCounter = 15; // On attend 15 bougies
-                if ($('alertToggle').checked && !alertTriggered) triggerAlert("🎯 Objectif TP atteint !", "var(--up)");
+                
+                saveLastTrade(lockedSetup, 'TP');
+                tradeState = 'COOLDOWN'; cooldownCounter = 15; 
             } 
             // Vérifier SL
             else if ((lockedSetup.type === 'buy' && currentPrice < lockedSetup.sl) || 
                      (lockedSetup.type === 'sell' && currentPrice > lockedSetup.sl)) {
-                tradeState = 'COOLDOWN';
-                cooldownCounter = 15;
-                if ($('alertToggle').checked && !alertTriggered) triggerAlert("🛑 Stop-Loss touché.", "var(--down)");
+                
+                saveLastTrade(lockedSetup, 'SL');
+                tradeState = 'COOLDOWN'; cooldownCounter = 15;
             }
             
             updateTradeStatus(currentPrice, isCurrentUp);
@@ -274,7 +314,7 @@ function analyzeSMC() {
         }
     }
 
-    // --- RECHERCHE D'UN NOUVEAU TRADE (Si IDLE) ---
+    // 3. RECHERCHE D'UN NOUVEAU TRADE
     if (tradeState === 'IDLE') {
         const closedCandles = currentData.slice(0, -1);
         let validOB = null;
@@ -322,6 +362,37 @@ function analyzeSMC() {
   } catch(e) { console.error("Erreur:", e); }
 }
 
+function saveLastTrade(setup, result) {
+    lastTrade = {
+        entry: setup.entry,
+        sl: setup.sl,
+        tp: setup.tp,
+        result: result
+    };
+    updateLastTradeUI();
+}
+
+function updateLastTradeUI() {
+    if (!lastTrade) return;
+    $('lastTradeBox').style.display = 'block';
+    
+    const dec = getDecimals(currentSymbol);
+    const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+    
+    $('lt-entry').textContent = fmt(lastTrade.entry);
+    $('lt-sl').textContent = fmt(lastTrade.sl);
+    $('lt-tp').textContent = fmt(lastTrade.tp);
+    
+    const resEl = $('lt-result');
+    if (lastTrade.result === 'TP') {
+        resEl.textContent = "✅ TP Atteint";
+        resEl.style.color = "var(--up)";
+    } else {
+        resEl.textContent = "❌ SL Touché";
+        resEl.style.color = "var(--down)";
+    }
+}
+
 function updateTradeStatus(price, isCurrentUp) {
     const statusDiv = $('tradeStatus');
     statusDiv.className = ''; 
@@ -344,20 +415,20 @@ function updateTradeStatus(price, isCurrentUp) {
 
     if ((isBuy && price >= setup.tp) || (!isBuy && price <= setup.tp)) {
         statusDiv.textContent = `🎯 Objectif TP atteint !`;
-        statusDiv.classList.add('status-done');
+        statusDiv.classList.add('status-progress');
         return;
     }
 
     if (price >= setup.entry - tolerance && price <= setup.entry + tolerance) {
-        let isConfluent = (isBuy && trends.m15 === 'up' && trends.h4 === 'up') || (!isBuy && trends.m15 === 'down' && trends.h4 === 'down');
-        let conflict = (isBuy && (trends.m15 === 'down' || trends.h4 === 'down')) || (!isBuy && (trends.m15 === 'up' || trends.h4 === 'up'));
+        let isConfluent = (isBuy && trends.htf1 === 'up' && trends.htf2 === 'up') || (!isBuy && trends.htf1 === 'down' && trends.htf2 === 'down');
+        let conflict = (isBuy && (trends.htf1 === 'down' || trends.htf2 === 'down')) || (!isBuy && (trends.htf1 === 'up' || trends.htf2 === 'up'));
 
         if (conflict) {
             statusDiv.textContent = `⚠️ Entrée atteinte, CONFLIT MTF`;
             statusDiv.classList.add('status-wait');
         } else if (isConfluent) {
             statusDiv.textContent = `🔥 CONFLUENCE PARFAITE !`;
-            statusDiv.classList.add('status-confluence');
+            statusDiv.classList.add('status-entry');
         } else {
             statusDiv.textContent = `⚡ ZONE D'ENTRÉE ATTEINTE !`;
             statusDiv.classList.add('status-entry');
@@ -397,10 +468,8 @@ function renderPanel(isCurrentUp) {
           </div>
         </div>
       `;
-  } else if (tradeState === 'COOLDOWN') {
-      html += `<div class="loading-text">Pause de sécurité avant le prochain trade.</div>`;
   } else {
-      html += `<div class="loading-text">Aucun setup actif. Le marché est en attente d'une structure claire.</div>`;
+      html += `<div class="loading-text">Aucun setup actif. En attente de structure.</div>`;
   }
 
   $('analysisContent').innerHTML = html;
@@ -422,15 +491,6 @@ function drawLines(setup) {
   addLine(setup.tp, '#26a69a', 'TP (RR2)', LightweightCharts.LineStyle.Dashed);
 }
 
-function triggerAlert(msg, color) {
-    alertTriggered = true;
-    const toast = $('toast');
-    toast.textContent = msg; toast.style.background = color; toast.style.display = 'block';
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-    setTimeout(() => { toast.style.display = 'none'; }, 4000);
-    setTimeout(() => { alertTriggered = false; }, 60000);
-}
-
 window.addEventListener('load', () => {
   initChart();
   setTimeout(() => {
@@ -446,15 +506,14 @@ window.addEventListener('load', () => {
 $('symbolSelect').addEventListener('change', (e) => { 
     currentSymbol = e.target.value; 
     localStorage.setItem('cv_symbol', currentSymbol); 
-    alertTriggered = false; 
-    lockedSetup = null; tradeState = 'IDLE'; // Reset complet
+    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; $('lastTradeBox').style.display = 'none';
     fetchMainData(); fetchHTF(); 
 });
 $('tfSelect').addEventListener('change', (e) => { 
     currentTF = e.target.value; 
     localStorage.setItem('cv_tf', currentTF); 
-    alertTriggered = false; 
-    lockedSetup = null; tradeState = 'IDLE'; // Reset complet
+    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; $('lastTradeBox').style.display = 'none';
+    updateHTFTargets();
     fetchMainData(); fetchHTF(); 
 });
 </script>
