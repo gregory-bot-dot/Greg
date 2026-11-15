@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — SMC Zones</title>
+<title>ChartVision Pro — SMC & Historique</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -168,6 +168,9 @@ let tradeState = 'IDLE';
 let cooldownEndTime = 0; 
 let lastTrade = null; 
 
+// Historique des trades (max 5 pour ne pas surcharger)
+let tradeHistory = []; 
+
 // Canvas pour dessiner les rectangles
 const overlayCanvas = $('overlayCanvas');
 const ctx = overlayCanvas.getContext('2d');
@@ -183,45 +186,83 @@ function getDecimals(symbol) {
 }
 
 /* =========================================
-   DESSIN DES ZONES (RECTANGLES) SUR LE CANVAS
+   DESSIN DES ZONES (HISTORIQUE + ACTIF)
    ========================================= */
 function drawTradeZones() {
-    // Ajuster la taille du canvas à celle du conteneur
     const rect = $('chart').getBoundingClientRect();
     if (overlayCanvas.width !== rect.width || overlayCanvas.height !== rect.height) {
         overlayCanvas.width = rect.width;
         overlayCanvas.height = rect.height;
     }
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-    
+
+    // 1. DESSINER L'HISTORIQUE (Trades terminés - Couleurs pâles)
+    tradeHistory.forEach(trade => {
+        const xStart = chart.timeScale().timeToCoordinate(trade.startTime);
+        const xEnd = chart.timeScale().timeToCoordinate(trade.endTime);
+
+        // Si hors de l'écran horizontalement, on skip
+        if (xStart === null || xEnd === null || xStart >= xEnd) return; 
+
+        const yEntry = candleSeries.priceToCoordinate(trade.entry);
+        const ySL = candleSeries.priceToCoordinate(trade.sl);
+        const yTP = candleSeries.priceToCoordinate(trade.tp);
+
+        if (yEntry === null || ySL === null || yTP === null) return;
+
+        // Zone de Risque Historique (Rouge très pâle)
+        const topSL = Math.min(yEntry, ySL);
+        const heightSL = Math.abs(yEntry - ySL);
+        ctx.fillStyle = 'rgba(239, 83, 80, 0.05)';
+        ctx.strokeStyle = 'rgba(239, 83, 80, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.fillRect(xStart, topSL, xEnd - xStart, heightSL);
+        ctx.strokeRect(xStart, topSL, xEnd - xStart, heightSL);
+
+        // Zone de Gain Historique (Vert très pâle)
+        const topTP = Math.min(yEntry, yTP);
+        const heightTP = Math.abs(yEntry - yTP);
+        ctx.fillStyle = 'rgba(38, 166, 154, 0.05)';
+        ctx.strokeStyle = 'rgba(38, 166, 154, 0.3)';
+        ctx.fillRect(xStart, topTP, xEnd - xStart, heightTP);
+        ctx.strokeRect(xStart, topTP, xEnd - xStart, heightTP);
+
+        // Ligne d'entrée historique (Bleu pâle)
+        ctx.beginPath();
+        ctx.setLineDash([3, 3]);
+        ctx.moveTo(xStart, yEntry);
+        ctx.lineTo(xEnd, yEntry);
+        ctx.strokeStyle = 'rgba(41, 98, 255, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.setLineDash([]);
+    });
+
+    // 2. DESSINER LE TRADE ACTIF (Couleurs vives)
     if (!lockedSetup || tradeState !== 'ACTIVE') return;
 
-    // Conversion des prix en coordonnées Y à l'écran
+    const lastTime = currentData[currentData.length - 1].time;
+    const xStart = chart.timeScale().timeToCoordinate(lockedSetup.startTime) || 0;
+    const xEnd = overlayCanvas.width; // Le trade actif va jusqu'au bord droit
+
+    if (xStart >= xEnd) return;
+
     const yEntry = candleSeries.priceToCoordinate(lockedSetup.entry);
     const ySL = candleSeries.priceToCoordinate(lockedSetup.sl);
     const yTP = candleSeries.priceToCoordinate(lockedSetup.tp);
 
-    // Si le prix est hors de l'écran visible, on ne dessine pas
     if (yEntry === null || ySL === null || yTP === null) return;
 
-    // Calcul de la position X (on commence à la dernière bougie et on va jusqu'au bord droit)
-    const lastTime = currentData[currentData.length - 1].time;
-    const xStart = chart.timeScale().timeToCoordinate(lastTime) || 0;
-    const xEnd = overlayCanvas.width;
-
-    // On ne dessine que si on a de l'espace
-    if (xStart >= xEnd) return;
-
-    // 1. ZONE DE GAIN (Vert)
+    // Zone de Gain Active (Vert)
     const topTP = Math.min(yEntry, yTP);
     const heightTP = Math.abs(yEntry - yTP);
     ctx.fillStyle = 'rgba(38, 166, 154, 0.15)';
     ctx.strokeStyle = 'rgba(38, 166, 154, 0.8)';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 2;
     ctx.fillRect(xStart, topTP, xEnd - xStart, heightTP);
     ctx.strokeRect(xStart, topTP, xEnd - xStart, heightTP);
 
-    // 2. ZONE DE RISQUE (Rouge)
+    // Zone de Risque Active (Rouge)
     const topSL = Math.min(yEntry, ySL);
     const heightSL = Math.abs(yEntry - ySL);
     ctx.fillStyle = 'rgba(239, 83, 80, 0.15)';
@@ -229,7 +270,7 @@ function drawTradeZones() {
     ctx.fillRect(xStart, topSL, xEnd - xStart, heightSL);
     ctx.strokeRect(xStart, topSL, xEnd - xStart, heightSL);
 
-    // 3. LIGNE D'ENTRÉE (Bleue, pointillés)
+    // Ligne d'Entrée Active (Bleue)
     ctx.beginPath();
     ctx.setLineDash([5, 5]);
     ctx.moveTo(xStart, yEntry);
@@ -237,23 +278,14 @@ function drawTradeZones() {
     ctx.strokeStyle = '#2962ff';
     ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.setLineDash([]); // Reset
+    ctx.setLineDash([]);
 
-    // 4. TEXTES (Optionnel, on ajoute TP et SL sur le côté)
+    // Textes
     ctx.font = 'bold 10px sans-serif';
     ctx.textAlign = 'right';
-    
-    // Texte TP
-    ctx.fillStyle = '#26a69a';
-    ctx.fillText('TP', xEnd - 5, topTP - 5);
-    
-    // Texte SL
-    ctx.fillStyle = '#ef5350';
-    ctx.fillText('SL', xEnd - 5, topSL + heightSL + 12);
-    
-    // Texte Entrée
-    ctx.fillStyle = '#2962ff';
-    ctx.fillText('ENTRÉE', xEnd - 5, yEntry - 5);
+    ctx.fillStyle = '#26a69a'; ctx.fillText('TP', xEnd - 5, topTP - 5);
+    ctx.fillStyle = '#ef5350'; ctx.fillText('SL', xEnd - 5, topSL + heightSL + 12);
+    ctx.fillStyle = '#2962ff'; ctx.fillText('ENTRÉE', xEnd - 5, yEntry - 5);
 }
 
 /* =========================================
@@ -270,16 +302,14 @@ function initChart() {
   });
   candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
   
-  // Mettre à jour la taille du canvas quand la fenêtre change
   const resizeObserver = new ResizeObserver(entries => {
     if (entries.length === 0 || entries[0].target !== chartContainer) return;
     const newRect = entries[0].contentRect;
     chart.applyOptions({ width: newRect.width, height: newRect.height });
-    drawTradeZones(); // Redessiner les zones
+    drawTradeZones();
   });
   resizeObserver.observe(chartContainer);
 
-  // Redessiner les zones quand on déplace/zoome le graphique
   chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
       drawTradeZones();
   });
@@ -289,9 +319,6 @@ function initChart() {
   updateHTFTargets();
 }
 
-/* =========================================
-   LOGIQUE MTF & FETCH
-   ========================================= */
 function updateHTFTargets() {
     if (currentTF === '1m' || currentTF === '5m') { currentHtf1 = '15m'; currentHtf2 = '4h'; }
     else if (currentTF === '15m') { currentHtf1 = '1h'; currentHtf2 = '4h'; }
@@ -395,7 +422,7 @@ function analyzeSMC() {
             const secondsLeft = cooldownEndTime - currentTime;
             const timeLabel = secondsLeft >= 60 ? Math.ceil(secondsLeft / 60) + " min" : secondsLeft + " sec";
             updateTradeStatus(currentPrice, isCurrentUp, timeLabel);
-            drawTradeZones(); // Mise à jour
+            drawTradeZones(); 
             return; 
         }
     }
@@ -405,13 +432,17 @@ function analyzeSMC() {
             lockedSetup = null; tradeState = 'IDLE';
         } else {
             if ((lockedSetup.type === 'buy' && currentPrice >= lockedSetup.tp) || (lockedSetup.type === 'sell' && currentPrice <= lockedSetup.tp)) {
-                saveLastTrade(lockedSetup, 'TP'); tradeState = 'COOLDOWN'; cooldownEndTime = currentTime + (3 * tfToSeconds(currentTF)); 
+                saveLastTrade(lockedSetup, 'TP', currentTime); 
+                tradeState = 'COOLDOWN'; 
+                cooldownEndTime = currentTime + (3 * tfToSeconds(currentTF)); 
             } else if ((lockedSetup.type === 'buy' && currentPrice < lockedSetup.sl) || (lockedSetup.type === 'sell' && currentPrice > lockedSetup.sl)) {
-                saveLastTrade(lockedSetup, 'SL'); tradeState = 'COOLDOWN'; cooldownEndTime = currentTime + (3 * tfToSeconds(currentTF));
+                saveLastTrade(lockedSetup, 'SL', currentTime); 
+                tradeState = 'COOLDOWN'; 
+                cooldownEndTime = currentTime + (3 * tfToSeconds(currentTF));
             }
             updateTradeStatus(currentPrice, isCurrentUp);
             renderPanel(isCurrentUp);
-            drawTradeZones(); // Mise à jour
+            drawTradeZones(); 
             return;
         }
     }
@@ -476,25 +507,42 @@ function analyzeSMC() {
                 type: isCurrentUp ? 'buy' : 'sell',
                 direction: trends.current,
                 entry: validOB.entry, sl: validOB.sl,
-                tp: isCurrentUp ? validOB.entry + (Math.abs(validOB.entry - validOB.sl) * 2) : validOB.entry - (Math.abs(validOB.entry - validOB.sl) * 2)
+                tp: isCurrentUp ? validOB.entry + (Math.abs(validOB.entry - validOB.sl) * 2) : validOB.entry - (Math.abs(validOB.entry - validOB.sl) * 2),
+                startTime: currentTime // On enregistre l'heure de début du trade
             };
             tradeState = 'ACTIVE';
             updateTradeStatus(currentPrice, isCurrentUp);
             renderPanel(isCurrentUp);
-            drawTradeZones(); // Mise à jour
+            drawTradeZones(); 
         } else {
             lockedSetup = null;
             updateTradeStatus(currentPrice, isCurrentUp);
             renderPanel(isCurrentUp);
-            drawTradeZones(); // Mise à jour
+            drawTradeZones(); 
         }
     }
 
   } catch(e) { console.error("Erreur:", e); }
 }
 
-function saveLastTrade(setup, result) {
+function saveLastTrade(setup, result, endTime) {
     lastTrade = { entry: setup.entry, sl: setup.sl, tp: setup.tp, result: result };
+    
+    // Ajout à l'historique visuel
+    tradeHistory.push({
+        startTime: setup.startTime,
+        endTime: endTime,
+        entry: setup.entry,
+        sl: setup.sl,
+        tp: setup.tp,
+        type: setup.type,
+        result: result
+    });
+    
+    // On ne garde que les 5 derniers trades pour ne pas surcharger l'écran
+    if (tradeHistory.length > 5) tradeHistory.shift();
+
+    // UI update
     $('lastTradeBox').style.display = 'block';
     const dec = getDecimals(currentSymbol);
     const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
@@ -594,12 +642,16 @@ window.addEventListener('load', () => {
 
 $('symbolSelect').addEventListener('change', (e) => { 
     currentSymbol = e.target.value; localStorage.setItem('cv_symbol', currentSymbol); 
-    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; cooldownEndTime = 0; $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
+    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; cooldownEndTime = 0; 
+    tradeHistory = []; // On vide l'historique quand on change d'actif
+    $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
     fetchMainData(); fetchHTF(); 
 });
 $('tfSelect').addEventListener('change', (e) => { 
     currentTF = e.target.value; localStorage.setItem('cv_tf', currentTF); 
-    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; cooldownEndTime = 0; $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
+    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; cooldownEndTime = 0; 
+    tradeHistory = []; // On vide l'historique quand on change de timeframe
+    $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
     updateHTFTargets(); fetchMainData(); fetchHTF(); 
 });
 </script>
