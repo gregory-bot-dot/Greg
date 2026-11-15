@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — SMC Reactif</title>
+<title>ChartVision Pro — SMC Journal</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -34,7 +34,7 @@
   #overlayCanvas { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2; pointer-events: none; }
   
   .panel{ width:340px; background:var(--panel); border-left:1px solid var(--line); display:flex; flex-direction:column; overflow-y:auto; }
-  @media(max-width:900px){ .panel{width:100%; height:55vh; border-left:none; border-top:1px solid var(--line);} }
+  @media(max-width:900px){ .panel{width:100%; height:60vh; border-left:none; border-top:1px solid var(--line);} }
   
   .mtf-row { display: flex; gap: 6px; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.2); }
   .mtf-badge { flex: 1; text-align: center; padding: 6px; border-radius: 6px; font-size: 11px; font-weight: bold; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); }
@@ -60,14 +60,20 @@
   .conf-item.yes { color: var(--up); }
   .conf-item.no { color: var(--muted); opacity: 0.6; }
 
-  #lastTradeBox { display: none; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.3); font-size: 12px; }
-  .lt-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; }
+  #lastTradeBox { display: none; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.3); font-size: 12px; position: relative; }
+  .lt-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;}
   .lt-grid { display: flex; justify-content: space-between; align-items: flex-end; }
   .lt-item small { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; }
   .lt-item b { font-family: monospace; color: #fff; font-size: 13px; }
   .lt-result { font-weight: bold; text-align: right; font-size: 13px; }
 
-  .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted);}
+  .btn-toggle-hist {
+    background: transparent; border: 1px solid var(--line); color: var(--muted);
+    font-size: 9px; padding: 2px 6px; border-radius: 4px; cursor: pointer; text-transform: none;
+  }
+  .btn-toggle-hist.active { color: var(--acc); border-color: var(--acc); }
+
+  .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted); display: flex; justify-content: space-between; align-items: center;}
   
   .setup{padding:15px; border-bottom:1px solid var(--line);}
   .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.1) 0%, transparent 100%); border-left: 4px solid var(--up);}
@@ -82,6 +88,21 @@
   .cell.precision b { color: var(--acc); font-size:15px;}
 
   .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:13px; }
+
+  /* JOURNAL DES TRADES */
+  #journalContent { padding: 10px 15px; display: flex; flex-direction: column; gap: 6px; background: var(--panel); }
+  .journal-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px; background: var(--panel2); border-radius: 6px;
+    border-left: 3px solid var(--muted); font-size: 11px;
+  }
+  .journal-item.win { border-left-color: var(--up); background: rgba(38,166,154,0.05); }
+  .journal-item.loss { border-left-color: var(--down); background: rgba(239,83,80,0.05); }
+  .journal-item .j-type { font-weight: bold; }
+  .journal-item.win .j-type { color: var(--up); }
+  .journal-item.loss .j-type { color: var(--down); }
+  .journal-item .j-details { display: flex; gap: 8px; color: var(--muted); font-family: monospace; }
+  .journal-item .j-result { font-weight: bold; margin-left: 5px; }
 </style>
 </head>
 <body>
@@ -93,7 +114,7 @@
       <option value="XAUUSD">🥇 XAU/USD</option>
       <option value="BTCUSD">₿ BTC/USD</option>
       <option value="EURUSD">🇪🇺 EUR/USD</option>
-      <option value="US500">🇺🇸 S&P 500</option>
+      <option value="US500">🇺🇸 US S&P 500</option>
     </select>
     <select id="tfSelect">
       <option value="1m">1m</option>
@@ -135,7 +156,10 @@
     </div>
 
     <div id="lastTradeBox">
-      <div class="lt-title">Dernier trade terminé</div>
+      <div class="lt-title">
+        <span>Dernier trade terminé</span>
+        <button id="btnToggleHist" class="btn-toggle-hist active">Masquer lignes</button>
+      </div>
       <div class="lt-grid">
         <div class="lt-item"><small>Entrée</small><b id="lt-entry">-</b></div>
         <div class="lt-item"><small>SL</small><b id="lt-sl">-</b></div>
@@ -146,6 +170,16 @@
 
     <div class="panel-header"><div>Trade Actif</div></div>
     <div id="analysisContent"><div class="loading-text">Initialisation...</div></div>
+
+    <!-- JOURNAL DES TRADES -->
+    <div class="panel-header">
+      <span>Journal des trades</span>
+      <button id="btnClearJournal" style="background:none; border:none; color:var(--muted); font-size:10px; cursor:pointer;">Effacer</button>
+    </div>
+    <div id="journalContent">
+      <div class="loading-text" style="padding:10px; font-size:11px;">Aucun trade enregistré.</div>
+    </div>
+
   </div>
 </div>
 
@@ -167,7 +201,9 @@ let tradeState = 'IDLE';
 let cooldownEndTime = 0; 
 let lastTrade = null; 
 
-let tradeHistory = []; 
+let tradeHistory = []; // Pour le graphique (max 10)
+let tradeJournal = []; // Pour le journal textuel (max 20)
+let showHistoryLines = true;
 
 const overlayCanvas = $('overlayCanvas');
 const ctx = overlayCanvas.getContext('2d');
@@ -183,7 +219,7 @@ function getDecimals(symbol) {
 }
 
 /* =========================================
-   DESSIN DES ZONES (HISTORIQUE + ACTIF)
+   DESSIN DES ZONES SUR LE GRAPHIQUE
    ========================================= */
 function drawTradeZones() {
     const rect = $('chart').getBoundingClientRect();
@@ -193,49 +229,49 @@ function drawTradeZones() {
     }
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
-    // 1. DESSINER L'HISTORIQUE
-    tradeHistory.forEach(trade => {
-        let xStart = chart.timeScale().timeToCoordinate(trade.startTime);
-        let xEnd = chart.timeScale().timeToCoordinate(trade.endTime);
+    if (showHistoryLines) {
+        tradeHistory.forEach(trade => {
+            let xStart = chart.timeScale().timeToCoordinate(trade.startTime);
+            let xEnd = chart.timeScale().timeToCoordinate(trade.endTime);
 
-        if (xStart === null || xEnd === null) return;
-        if (xEnd <= xStart) xEnd = xStart + 15; // Largeur min
+            if (xStart === null || xEnd === null) return;
+            if (xEnd <= xStart) xEnd = xStart + 15;
 
-        const yEntry = candleSeries.priceToCoordinate(trade.entry);
-        const ySL = candleSeries.priceToCoordinate(trade.sl);
-        const yTP = candleSeries.priceToCoordinate(trade.tp);
+            const yEntry = candleSeries.priceToCoordinate(trade.entry);
+            const ySL = candleSeries.priceToCoordinate(trade.sl);
+            const yTP = candleSeries.priceToCoordinate(trade.tp);
 
-        if (yEntry === null || ySL === null || yTP === null) return;
+            if (yEntry === null || ySL === null || yTP === null) return;
 
-        // Zone Risque
-        const topSL = Math.min(yEntry, ySL);
-        const heightSL = Math.abs(yEntry - ySL);
-        ctx.fillStyle = 'rgba(239, 83, 80, 0.1)';
-        ctx.strokeStyle = 'rgba(239, 83, 80, 0.5)';
-        ctx.lineWidth = 1;
-        ctx.fillRect(xStart, topSL, xEnd - xStart, heightSL);
-        ctx.strokeRect(xStart, topSL, xEnd - xStart, heightSL);
+            // Risque
+            const topSL = Math.min(yEntry, ySL);
+            const heightSL = Math.abs(yEntry - ySL);
+            ctx.fillStyle = 'rgba(239, 83, 80, 0.05)';
+            ctx.setLineDash([2, 2]);
+            ctx.strokeStyle = 'rgba(239, 83, 80, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.fillRect(xStart, topSL, xEnd - xStart, heightSL);
+            ctx.strokeRect(xStart, topSL, xEnd - xStart, heightSL);
 
-        // Zone Gain
-        const topTP = Math.min(yEntry, yTP);
-        const heightTP = Math.abs(yEntry - yTP);
-        ctx.fillStyle = 'rgba(38, 166, 154, 0.1)';
-        ctx.strokeStyle = 'rgba(38, 166, 154, 0.5)';
-        ctx.fillRect(xStart, topTP, xEnd - xStart, heightTP);
-        ctx.strokeRect(xStart, topTP, xEnd - xStart, heightTP);
+            // Gain
+            const topTP = Math.min(yEntry, yTP);
+            const heightTP = Math.abs(yEntry - yTP);
+            ctx.fillStyle = 'rgba(38, 166, 154, 0.05)';
+            ctx.strokeStyle = 'rgba(38, 166, 154, 0.4)';
+            ctx.fillRect(xStart, topTP, xEnd - xStart, heightTP);
+            ctx.strokeRect(xStart, topTP, xEnd - xStart, heightTP);
 
-        // Ligne entrée
-        ctx.beginPath();
-        ctx.setLineDash([3, 3]);
-        ctx.moveTo(xStart, yEntry);
-        ctx.lineTo(xEnd, yEntry);
-        ctx.strokeStyle = 'rgba(41, 98, 255, 0.6)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.setLineDash([]);
-    });
+            // Entrée
+            ctx.beginPath();
+            ctx.moveTo(xStart, yEntry);
+            ctx.lineTo(xEnd, yEntry);
+            ctx.strokeStyle = 'rgba(41, 98, 255, 0.4)';
+            ctx.stroke();
+            ctx.setLineDash([]);
+        });
+    }
 
-    // 2. DESSINER LE TRADE ACTIF
+    // Trade Actif
     if (tradeState !== 'ACTIVE' || !lockedSetup) return;
 
     const xStart = chart.timeScale().timeToCoordinate(lockedSetup.startTime) || 0;
@@ -383,7 +419,7 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC (Assouplie)
+   LOGIQUE SMC
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 50) return;
@@ -475,18 +511,14 @@ function analyzeSMC() {
                 const bodySize = Math.abs(c.close - c.open);
                 const totalWick = c.high - c.low;
                 
-                // Filtre volume
                 if (c.volume > 0 && c.volume > volSMA * 1.5) { confluenceScore++; confluenceDetails.volume = true; }
-                else if (c.volume === 0) { confluenceDetails.volume = true; } // Forex exemption
+                else if (c.volume === 0) { confluenceDetails.volume = true; }
                 
-                // Filtre displacement
                 if (bodySize > totalWick * 0.6 && bodySize > atr * 1.2) { confluenceScore++; confluenceDetails.displacement = true; }
                 
-                // Filtre session
                 const hour = new Date(c.time * 1000).getUTCHours();
                 if (hour >= 7 && hour <= 16) { confluenceScore++; confluenceDetails.session = true; }
 
-                // On accepte le trade à partir de 1/5 (CHoCH valide), mais on prévient si c'est faible
                 if (confluenceScore >= 1 && direction === (isCurrentUp ? "buy" : "sell")) {
                     validOB = { top: obTop, bottom: obBottom, entry: entry, sl: sl };
                     waitReason = confluenceScore === 1 ? "Setup validé (Risque élevé)" : "Setup valide";
@@ -497,11 +529,9 @@ function analyzeSMC() {
             }
         }
 
-        // Mise à jour UI du score
         $('confScore').textContent = `${confluenceScore}/5`;
         $('confReason').textContent = waitReason || "Score de Confluence";
         
-        // Correction bug affichage : on s'assure que seuls les vrais critères sont verts
         $('conf-1').className = 'conf-item ' + (confluenceDetails.choch ? 'yes' : 'no');
         $('conf-2').className = 'conf-item ' + (confluenceDetails.displacement ? 'yes' : 'no');
         $('conf-3').className = 'conf-item ' + (confluenceDetails.volume ? 'yes' : 'no');
@@ -530,13 +560,38 @@ function analyzeSMC() {
   } catch(e) { console.error("Erreur:", e); }
 }
 
+/* =========================================
+   SAUVEGARDE DU TRADE & JOURNAL
+   ========================================= */
 function saveLastTrade(setup, result, endTime) {
-    lastTrade = { entry: setup.entry, sl: setup.sl, tp: setup.tp, result: result };
-    tradeHistory.push({
-        startTime: setup.startTime, endTime: endTime, entry: setup.entry, sl: setup.sl, tp: setup.tp, type: setup.type, result: result
-    });
-    if (tradeHistory.length > 5) tradeHistory.shift();
+    const tradeData = {
+        entry: setup.entry,
+        sl: setup.sl,
+        tp: setup.tp,
+        type: setup.type,
+        result: result,
+        endTime: endTime
+    };
 
+    lastTrade = tradeData;
+
+    // 1. Ajout à l'historique visuel (pour les rectangles)
+    tradeHistory.push({
+        startTime: setup.startTime,
+        endTime: endTime,
+        entry: setup.entry,
+        sl: setup.sl,
+        tp: setup.tp,
+        type: setup.type,
+        result: result
+    });
+    if (tradeHistory.length > 10) tradeHistory.shift(); // Garde max 10 sur le graphique
+
+    // 2. Ajout au Journal textuel
+    tradeJournal.push(tradeData);
+    if (tradeJournal.length > 20) tradeJournal.shift(); // Garde max 20 dans le journal
+
+    // UI
     $('lastTradeBox').style.display = 'block';
     const dec = getDecimals(currentSymbol);
     const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
@@ -546,8 +601,50 @@ function saveLastTrade(setup, result, endTime) {
     const resEl = $('lt-result');
     if (lastTrade.result === 'TP') { resEl.textContent = "✅ TP Atteint"; resEl.style.color = "var(--up)"; }
     else { resEl.textContent = "❌ SL Touché"; resEl.style.color = "var(--down)"; }
+
+    renderJournal();
 }
 
+function renderJournal() {
+    const container = $('journalContent');
+    if (tradeJournal.length === 0) {
+        container.innerHTML = '<div class="loading-text" style="padding:10px; font-size:11px;">Aucun trade enregistré.</div>';
+        return;
+    }
+
+    const dec = getDecimals(currentSymbol);
+    const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+
+    // On affiche du plus récent au plus ancien
+    let html = '';
+    for (let i = tradeJournal.length - 1; i >= 0; i--) {
+        const t = tradeJournal[i];
+        const isWin = t.result === 'TP';
+        const date = new Date(t.endTime * 1000).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+        
+        html += `
+            <div class="journal-item ${isWin ? 'win' : 'loss'}">
+                <div style="display:flex; flex-direction:column;">
+                    <span class="j-type">${t.type === 'buy' ? '🟢 ACHAT' : '🔴 VENTE'}</span>
+                    <span style="font-size:9px; color:var(--muted);">${date}</span>
+                </div>
+                <div class="j-details">
+                    <span>E: ${fmt(t.entry)}</span>
+                    <span>SL: ${fmt(t.sl)}</span>
+                    <span>TP: ${fmt(t.tp)}</span>
+                </div>
+                <div class="j-result" style="color:${isWin ? 'var(--up)' : 'var(--down)'}">
+                    ${isWin ? 'TP ✅' : 'SL ❌'}
+                </div>
+            </div>
+        `;
+    }
+    container.innerHTML = html;
+}
+
+/* =========================================
+   GESTION UI / STATUS
+   ========================================= */
 function updateTradeStatus(price, isCurrentUp, timeLeftStr) {
     const statusDiv = $('tradeStatus');
     statusDiv.className = ''; 
@@ -592,6 +689,29 @@ window.skipCooldown = function() {
     }
 };
 
+$('btnToggleHist').addEventListener('click', () => {
+    showHistoryLines = !showHistoryLines;
+    if(showHistoryLines) {
+        $('btnToggleHist').textContent = "Masquer lignes";
+        $('btnToggleHist').classList.add('active');
+    } else {
+        $('btnToggleHist').textContent = "Afficher lignes";
+        $('btnToggleHist').classList.remove('active');
+    }
+    drawTradeZones();
+});
+
+$('btnClearJournal').addEventListener('click', () => {
+    if(confirm("Effacer tout le journal des trades ?")) {
+        tradeJournal = [];
+        tradeHistory = [];
+        lastTrade = null;
+        $('lastTradeBox').style.display = 'none';
+        renderJournal();
+        drawTradeZones();
+    }
+});
+
 function renderPanel(isCurrentUp) {
   const dec = getDecimals(currentSymbol);
   const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
@@ -624,6 +744,7 @@ function renderPanel(isCurrentUp) {
 
 window.addEventListener('load', () => {
   initChart();
+  renderJournal();
   setTimeout(() => {
     fetchMainData();
     fetchHTF();
@@ -637,14 +758,14 @@ window.addEventListener('load', () => {
 $('symbolSelect').addEventListener('change', (e) => { 
     currentSymbol = e.target.value; localStorage.setItem('cv_symbol', currentSymbol); 
     lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; cooldownEndTime = 0; 
-    tradeHistory = []; 
+    tradeHistory = []; tradeJournal = []; renderJournal();
     $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
     fetchMainData(); fetchHTF(); 
 });
 $('tfSelect').addEventListener('change', (e) => { 
     currentTF = e.target.value; localStorage.setItem('cv_tf', currentTF); 
     lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; cooldownEndTime = 0; 
-    tradeHistory = []; 
+    tradeHistory = []; tradeJournal = []; renderJournal();
     $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
     updateHTFTargets(); fetchMainData(); fetchHTF(); 
 });
