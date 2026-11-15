@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — SMC & Historique</title>
+<title>ChartVision Pro — SMC Reactif</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -29,7 +29,6 @@
   .app{display:flex; flex:1; overflow:hidden; position:relative;}
   @media(max-width:900px){ .app{flex-direction:column;} }
   
-  /* LE CHART ET LE CANVAS DE DESSIN DES ZONES */
   .chart-container{ flex:1; position:relative; background:#05080c; min-height: 300px; }
   #chart{ position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; }
   #overlayCanvas { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2; pointer-events: none; }
@@ -168,7 +167,6 @@ let tradeState = 'IDLE';
 let cooldownEndTime = 0; 
 let lastTrade = null; 
 
-// Historique des trades
 let tradeHistory = []; 
 
 const overlayCanvas = $('overlayCanvas');
@@ -195,15 +193,13 @@ function drawTradeZones() {
     }
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
-    // 1. DESSINER L'HISTORIQUE (Trades terminés)
+    // 1. DESSINER L'HISTORIQUE
     tradeHistory.forEach(trade => {
         let xStart = chart.timeScale().timeToCoordinate(trade.startTime);
         let xEnd = chart.timeScale().timeToCoordinate(trade.endTime);
 
-        if (xStart === null || xEnd === null) return; // Hors de l'écran
-
-        // CORRECTION : Si le trade a été très court, on force une largeur minimum de 15px
-        if (xEnd <= xStart) xEnd = xStart + 15;
+        if (xStart === null || xEnd === null) return;
+        if (xEnd <= xStart) xEnd = xStart + 15; // Largeur min
 
         const yEntry = candleSeries.priceToCoordinate(trade.entry);
         const ySL = candleSeries.priceToCoordinate(trade.sl);
@@ -211,16 +207,16 @@ function drawTradeZones() {
 
         if (yEntry === null || ySL === null || yTP === null) return;
 
-        // Zone de Risque Historique
+        // Zone Risque
         const topSL = Math.min(yEntry, ySL);
         const heightSL = Math.abs(yEntry - ySL);
-        ctx.fillStyle = 'rgba(239, 83, 80, 0.1)'; // Opacité augmentée
+        ctx.fillStyle = 'rgba(239, 83, 80, 0.1)';
         ctx.strokeStyle = 'rgba(239, 83, 80, 0.5)';
         ctx.lineWidth = 1;
         ctx.fillRect(xStart, topSL, xEnd - xStart, heightSL);
         ctx.strokeRect(xStart, topSL, xEnd - xStart, heightSL);
 
-        // Zone de Gain Historique
+        // Zone Gain
         const topTP = Math.min(yEntry, yTP);
         const heightTP = Math.abs(yEntry - yTP);
         ctx.fillStyle = 'rgba(38, 166, 154, 0.1)';
@@ -228,7 +224,7 @@ function drawTradeZones() {
         ctx.fillRect(xStart, topTP, xEnd - xStart, heightTP);
         ctx.strokeRect(xStart, topTP, xEnd - xStart, heightTP);
 
-        // Ligne d'entrée historique
+        // Ligne entrée
         ctx.beginPath();
         ctx.setLineDash([3, 3]);
         ctx.moveTo(xStart, yEntry);
@@ -253,7 +249,6 @@ function drawTradeZones() {
 
     if (yEntry === null || ySL === null || yTP === null) return;
 
-    // Zone de Gain Active
     const topTP = Math.min(yEntry, yTP);
     const heightTP = Math.abs(yEntry - yTP);
     ctx.fillStyle = 'rgba(38, 166, 154, 0.15)';
@@ -262,7 +257,6 @@ function drawTradeZones() {
     ctx.fillRect(xStart, topTP, xEnd - xStart, heightTP);
     ctx.strokeRect(xStart, topTP, xEnd - xStart, heightTP);
 
-    // Zone de Risque Active
     const topSL = Math.min(yEntry, ySL);
     const heightSL = Math.abs(yEntry - ySL);
     ctx.fillStyle = 'rgba(239, 83, 80, 0.15)';
@@ -270,7 +264,6 @@ function drawTradeZones() {
     ctx.fillRect(xStart, topSL, xEnd - xStart, heightSL);
     ctx.strokeRect(xStart, topSL, xEnd - xStart, heightSL);
 
-    // Ligne d'Entrée Active
     ctx.beginPath();
     ctx.setLineDash([5, 5]);
     ctx.moveTo(xStart, yEntry);
@@ -280,7 +273,6 @@ function drawTradeZones() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Textes
     ctx.font = 'bold 10px sans-serif';
     ctx.textAlign = 'right';
     ctx.fillStyle = '#26a69a'; ctx.fillText('TP', xEnd - 5, topTP - 5);
@@ -289,7 +281,7 @@ function drawTradeZones() {
 }
 
 /* =========================================
-   INITIALISATION DU GRAPHIQUE
+   INITIALISATION
    ========================================= */
 function initChart() {
   const chartContainer = $('chart');
@@ -391,7 +383,7 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC
+   LOGIQUE SMC (Assouplie)
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 50) return;
@@ -416,7 +408,7 @@ function analyzeSMC() {
     const currentTime = currentData[currentData.length - 1].time;
 
     if (tradeState === 'COOLDOWN') {
-        $('confluenceBox').style.display = 'none'; // Cacher le score pendant la pause
+        $('confluenceBox').style.display = 'none'; 
         
         if (currentTime >= cooldownEndTime) {
             tradeState = 'IDLE'; lockedSetup = null;
@@ -450,7 +442,7 @@ function analyzeSMC() {
     }
 
     if (tradeState === 'IDLE') {
-        $('confluenceBox').style.display = 'block'; // Afficher le score en recherche
+        $('confluenceBox').style.display = 'block'; 
         
         const closedCandles = currentData.slice(0, -1);
         let validOB = null;
@@ -482,15 +474,22 @@ function analyzeSMC() {
                 confluenceScore = 1; confluenceDetails.choch = true;
                 const bodySize = Math.abs(c.close - c.open);
                 const totalWick = c.high - c.low;
-                if (bodySize > totalWick * 0.6 && bodySize > atr * 1.2) { confluenceScore++; confluenceDetails.displacement = true; }
+                
+                // Filtre volume
                 if (c.volume > 0 && c.volume > volSMA * 1.5) { confluenceScore++; confluenceDetails.volume = true; }
-                else if (c.volume === 0) { confluenceDetails.volume = true; }
+                else if (c.volume === 0) { confluenceDetails.volume = true; } // Forex exemption
+                
+                // Filtre displacement
+                if (bodySize > totalWick * 0.6 && bodySize > atr * 1.2) { confluenceScore++; confluenceDetails.displacement = true; }
+                
+                // Filtre session
                 const hour = new Date(c.time * 1000).getUTCHours();
                 if (hour >= 7 && hour <= 16) { confluenceScore++; confluenceDetails.session = true; }
 
-                if (confluenceScore >= 2 && direction === (isCurrentUp ? "buy" : "sell")) {
+                // On accepte le trade à partir de 1/5 (CHoCH valide), mais on prévient si c'est faible
+                if (confluenceScore >= 1 && direction === (isCurrentUp ? "buy" : "sell")) {
                     validOB = { top: obTop, bottom: obBottom, entry: entry, sl: sl };
-                    waitReason = confluenceScore === 2 ? "Setup mineur (Confirmation faible)" : "";
+                    waitReason = confluenceScore === 1 ? "Setup validé (Risque élevé)" : "Setup valide";
                     break; 
                 } else {
                     waitReason = "Recherche d'une meilleure confluence...";
@@ -498,8 +497,11 @@ function analyzeSMC() {
             }
         }
 
+        // Mise à jour UI du score
         $('confScore').textContent = `${confluenceScore}/5`;
         $('confReason').textContent = waitReason || "Score de Confluence";
+        
+        // Correction bug affichage : on s'assure que seuls les vrais critères sont verts
         $('conf-1').className = 'conf-item ' + (confluenceDetails.choch ? 'yes' : 'no');
         $('conf-2').className = 'conf-item ' + (confluenceDetails.displacement ? 'yes' : 'no');
         $('conf-3').className = 'conf-item ' + (confluenceDetails.volume ? 'yes' : 'no');
@@ -530,17 +532,9 @@ function analyzeSMC() {
 
 function saveLastTrade(setup, result, endTime) {
     lastTrade = { entry: setup.entry, sl: setup.sl, tp: setup.tp, result: result };
-    
     tradeHistory.push({
-        startTime: setup.startTime,
-        endTime: endTime,
-        entry: setup.entry,
-        sl: setup.sl,
-        tp: setup.tp,
-        type: setup.type,
-        result: result
+        startTime: setup.startTime, endTime: endTime, entry: setup.entry, sl: setup.sl, tp: setup.tp, type: setup.type, result: result
     });
-    
     if (tradeHistory.length > 5) tradeHistory.shift();
 
     $('lastTradeBox').style.display = 'block';
