@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — SMC & News</title>
+<title>ChartVision Pro — SMC Zones</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -29,8 +29,10 @@
   .app{display:flex; flex:1; overflow:hidden; position:relative;}
   @media(max-width:900px){ .app{flex-direction:column;} }
   
+  /* LE CHART ET LE CANVAS DE DESSIN DES ZONES */
   .chart-container{ flex:1; position:relative; background:#05080c; min-height: 300px; }
-  #chart{ position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+  #chart{ position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; }
+  #overlayCanvas { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2; pointer-events: none; }
   
   .panel{ width:340px; background:var(--panel); border-left:1px solid var(--line); display:flex; flex-direction:column; overflow-y:auto; }
   @media(max-width:900px){ .panel{width:100%; height:55vh; border-left:none; border-top:1px solid var(--line);} }
@@ -81,11 +83,6 @@
   .cell.precision b { color: var(--acc); font-size:15px;}
 
   .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:13px; }
-
-  /* CALENDRIER ECONOMIQUE */
-  .calendar-box { padding: 10px; border-top: 1px solid var(--line); background: var(--panel); }
-  .calendar-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-  iframe { width: 100%; height: 350px; border: none; border-radius: 6px; background: #fff; }
 </style>
 </head>
 <body>
@@ -111,7 +108,10 @@
 </header>
 
 <div class="app">
-  <div class="chart-container" id="chartContainer"><div id="chart"></div></div>
+  <div class="chart-container" id="chartContainer">
+    <div id="chart"></div>
+    <canvas id="overlayCanvas"></canvas>
+  </div>
   
   <div class="panel">
     <div class="mtf-row">
@@ -147,16 +147,6 @@
 
     <div class="panel-header"><div>Trade Actif</div></div>
     <div id="analysisContent"><div class="loading-text">Initialisation...</div></div>
-
-    <!-- CALENDRIER ECONOMIQUE EN DIRECT -->
-    <div class="calendar-box">
-      <div class="calendar-title">
-        <span>📅 Calendrier Économique</span>
-      </div>
-      <!-- Iframe ForexFactory (thème clair pour la lisibilité) -->
-      <iframe src="https://sslecal2.forexprostools.com?columns=exc_flags,exc_currency,exc_importance,exc_actual,exc_forecast,exc_previous&features=datepicker,timezone&countries=5,17,29,22&calType=day&timeZone=55&lang=4" allowtransparency="true" frameborder="0"></iframe>
-    </div>
-
   </div>
 </div>
 
@@ -169,7 +159,6 @@ let currentTF = '1m';
 let currentPrice = 0;
 let updateInterval = null;
 let htfInterval = null;
-let priceLines = []; 
 
 let trends = { current: 'neutral', htf1: 'neutral', htf2: 'neutral' };
 let currentHtf1 = '15m'; let currentHtf2 = '4h';
@@ -178,6 +167,10 @@ let lockedSetup = null;
 let tradeState = 'IDLE'; 
 let cooldownEndTime = 0; 
 let lastTrade = null; 
+
+// Canvas pour dessiner les rectangles
+const overlayCanvas = $('overlayCanvas');
+const ctx = overlayCanvas.getContext('2d');
 
 if(localStorage.getItem('cv_symbol')) currentSymbol = localStorage.getItem('cv_symbol');
 if(localStorage.getItem('cv_tf')) currentTF = localStorage.getItem('cv_tf');
@@ -190,42 +183,82 @@ function getDecimals(symbol) {
 }
 
 /* =========================================
-   CALCULS TECHNIQUES & MTF
+   DESSIN DES ZONES (RECTANGLES) SUR LE CANVAS
    ========================================= */
-function calculateATR(period) {
-    if (currentData.length < period + 1) return 0;
-    let trSum = 0;
-    for (let i = currentData.length - period; i < currentData.length; i++) {
-        const current = currentData[i]; const prev = currentData[i-1];
-        const tr = Math.max(current.high - current.low, Math.abs(current.high - prev.close), Math.abs(current.low - prev.close));
-        trSum += tr;
+function drawTradeZones() {
+    // Ajuster la taille du canvas à celle du conteneur
+    const rect = $('chart').getBoundingClientRect();
+    if (overlayCanvas.width !== rect.width || overlayCanvas.height !== rect.height) {
+        overlayCanvas.width = rect.width;
+        overlayCanvas.height = rect.height;
     }
-    return trSum / period;
-}
-function calculateSMAVolume(period) {
-    if (currentData.length < period) return 0;
-    let sum = 0;
-    for (let i = currentData.length - period; i < currentData.length; i++) { sum += (currentData[i].volume || 0); }
-    return sum / period;
-}
-function calculateEMA(data, period) {
-  if (!data || data.length < period) return 0;
-  const k = 2 / (period + 1);
-  let ema = data.slice(0, period).reduce((acc, c) => acc + parseFloat(c.close), 0) / period;
-  for (let i = period; i < data.length; i++) { ema = (parseFloat(data[i].close) - ema) * k + ema; }
-  return ema;
+    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    
+    if (!lockedSetup || tradeState !== 'ACTIVE') return;
+
+    // Conversion des prix en coordonnées Y à l'écran
+    const yEntry = candleSeries.priceToCoordinate(lockedSetup.entry);
+    const ySL = candleSeries.priceToCoordinate(lockedSetup.sl);
+    const yTP = candleSeries.priceToCoordinate(lockedSetup.tp);
+
+    // Si le prix est hors de l'écran visible, on ne dessine pas
+    if (yEntry === null || ySL === null || yTP === null) return;
+
+    // Calcul de la position X (on commence à la dernière bougie et on va jusqu'au bord droit)
+    const lastTime = currentData[currentData.length - 1].time;
+    const xStart = chart.timeScale().timeToCoordinate(lastTime) || 0;
+    const xEnd = overlayCanvas.width;
+
+    // On ne dessine que si on a de l'espace
+    if (xStart >= xEnd) return;
+
+    // 1. ZONE DE GAIN (Vert)
+    const topTP = Math.min(yEntry, yTP);
+    const heightTP = Math.abs(yEntry - yTP);
+    ctx.fillStyle = 'rgba(38, 166, 154, 0.15)';
+    ctx.strokeStyle = 'rgba(38, 166, 154, 0.8)';
+    ctx.lineWidth = 1;
+    ctx.fillRect(xStart, topTP, xEnd - xStart, heightTP);
+    ctx.strokeRect(xStart, topTP, xEnd - xStart, heightTP);
+
+    // 2. ZONE DE RISQUE (Rouge)
+    const topSL = Math.min(yEntry, ySL);
+    const heightSL = Math.abs(yEntry - ySL);
+    ctx.fillStyle = 'rgba(239, 83, 80, 0.15)';
+    ctx.strokeStyle = 'rgba(239, 83, 80, 0.8)';
+    ctx.fillRect(xStart, topSL, xEnd - xStart, heightSL);
+    ctx.strokeRect(xStart, topSL, xEnd - xStart, heightSL);
+
+    // 3. LIGNE D'ENTRÉE (Bleue, pointillés)
+    ctx.beginPath();
+    ctx.setLineDash([5, 5]);
+    ctx.moveTo(xStart, yEntry);
+    ctx.lineTo(xEnd, yEntry);
+    ctx.strokeStyle = '#2962ff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.setLineDash([]); // Reset
+
+    // 4. TEXTES (Optionnel, on ajoute TP et SL sur le côté)
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'right';
+    
+    // Texte TP
+    ctx.fillStyle = '#26a69a';
+    ctx.fillText('TP', xEnd - 5, topTP - 5);
+    
+    // Texte SL
+    ctx.fillStyle = '#ef5350';
+    ctx.fillText('SL', xEnd - 5, topSL + heightSL + 12);
+    
+    // Texte Entrée
+    ctx.fillStyle = '#2962ff';
+    ctx.fillText('ENTRÉE', xEnd - 5, yEntry - 5);
 }
 
-function updateHTFTargets() {
-    if (currentTF === '1m' || currentTF === '5m') { currentHtf1 = '15m'; currentHtf2 = '4h'; }
-    else if (currentTF === '15m') { currentHtf1 = '1h'; currentHtf2 = '4h'; }
-    else if (currentTF === '1h') { currentHtf1 = '4h'; currentHtf2 = '1d'; }
-    else if (currentTF === '4h') { currentHtf1 = '1d'; currentHtf2 = null; }
-    else if (currentTF === '1d') { currentHtf1 = null; currentHtf2 = null; }
-    $('badge-htf1').textContent = currentHtf1 || '--';
-    $('badge-htf2').textContent = currentHtf2 || '--';
-}
-
+/* =========================================
+   INITIALISATION DU GRAPHIQUE
+   ========================================= */
 function initChart() {
   const chartContainer = $('chart');
   chart = LightweightCharts.createChart(chartContainer, {
@@ -236,15 +269,37 @@ function initChart() {
     timeScale: { borderColor: '#2f3a52', timeVisible: true, secondsVisible: false },
   });
   candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
+  
+  // Mettre à jour la taille du canvas quand la fenêtre change
   const resizeObserver = new ResizeObserver(entries => {
     if (entries.length === 0 || entries[0].target !== chartContainer) return;
     const newRect = entries[0].contentRect;
     chart.applyOptions({ width: newRect.width, height: newRect.height });
+    drawTradeZones(); // Redessiner les zones
   });
   resizeObserver.observe(chartContainer);
+
+  // Redessiner les zones quand on déplace/zoome le graphique
+  chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+      drawTradeZones();
+  });
+
   $('symbolSelect').value = currentSymbol;
   $('tfSelect').value = currentTF;
   updateHTFTargets();
+}
+
+/* =========================================
+   LOGIQUE MTF & FETCH
+   ========================================= */
+function updateHTFTargets() {
+    if (currentTF === '1m' || currentTF === '5m') { currentHtf1 = '15m'; currentHtf2 = '4h'; }
+    else if (currentTF === '15m') { currentHtf1 = '1h'; currentHtf2 = '4h'; }
+    else if (currentTF === '1h') { currentHtf1 = '4h'; currentHtf2 = '1d'; }
+    else if (currentTF === '4h') { currentHtf1 = '1d'; currentHtf2 = null; }
+    else if (currentTF === '1d') { currentHtf1 = null; currentHtf2 = null; }
+    $('badge-htf1').textContent = currentHtf1 || '--';
+    $('badge-htf2').textContent = currentHtf2 || '--';
 }
 
 async function fetchUrl(targetUrl) {
@@ -257,6 +312,14 @@ async function fetchUrl(targetUrl) {
     if (res.ok) return await res.json();
   } catch(e) {}
   return null;
+}
+
+function calculateEMA(data, period) {
+  if (!data || data.length < period) return 0;
+  const k = 2 / (period + 1);
+  let ema = data.slice(0, period).reduce((acc, c) => acc + parseFloat(c.close), 0) / period;
+  for (let i = period; i < data.length; i++) { ema = (parseFloat(data[i].close) - ema) * k + ema; }
+  return ema;
 }
 
 async function fetchHTF() {
@@ -301,25 +364,38 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC & GESTION
+   LOGIQUE SMC
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 50) return;
   try {
     const isCurrentUp = trends.current === 'up';
-    const atr = calculateATR(14);
-    const volSMA = calculateSMAVolume(20);
+    const atr = (function() {
+        let trSum = 0;
+        for (let i = currentData.length - 14; i < currentData.length; i++) {
+            const current = currentData[i]; const prev = currentData[i-1];
+            const tr = Math.max(current.high - current.low, Math.abs(current.high - prev.close), Math.abs(current.low - prev.close));
+            trSum += tr;
+        }
+        return trSum / 14;
+    })();
+    
+    const volSMA = (function() {
+        let sum = 0;
+        for (let i = currentData.length - 20; i < currentData.length; i++) { sum += (currentData[i].volume || 0); }
+        return sum / 20;
+    })();
+    
     const currentTime = currentData[currentData.length - 1].time;
 
     if (tradeState === 'COOLDOWN') {
         if (currentTime >= cooldownEndTime) {
-            tradeState = 'IDLE';
-            lockedSetup = null;
+            tradeState = 'IDLE'; lockedSetup = null;
         } else {
             const secondsLeft = cooldownEndTime - currentTime;
             const timeLabel = secondsLeft >= 60 ? Math.ceil(secondsLeft / 60) + " min" : secondsLeft + " sec";
             updateTradeStatus(currentPrice, isCurrentUp, timeLabel);
-            drawLines(null);
+            drawTradeZones(); // Mise à jour
             return; 
         }
     }
@@ -335,7 +411,7 @@ function analyzeSMC() {
             }
             updateTradeStatus(currentPrice, isCurrentUp);
             renderPanel(isCurrentUp);
-            drawLines(lockedSetup);
+            drawTradeZones(); // Mise à jour
             return;
         }
     }
@@ -348,8 +424,7 @@ function analyzeSMC() {
         let waitReason = "";
 
         for (let i = closedCandles.length - 3; i >= closedCandles.length - 40; i--) {
-            const c = closedCandles[i]; 
-            const prev = closedCandles[i-1];
+            const c = closedCandles[i]; const prev = closedCandles[i-1];
             
             let isCHoCH = false;
             let obTop = 0, obBottom = 0, sl = 0, entry = 0;
@@ -406,12 +481,12 @@ function analyzeSMC() {
             tradeState = 'ACTIVE';
             updateTradeStatus(currentPrice, isCurrentUp);
             renderPanel(isCurrentUp);
-            drawLines(lockedSetup);
+            drawTradeZones(); // Mise à jour
         } else {
             lockedSetup = null;
             updateTradeStatus(currentPrice, isCurrentUp);
             renderPanel(isCurrentUp);
-            drawLines(null);
+            drawTradeZones(); // Mise à jour
         }
     }
 
@@ -503,20 +578,6 @@ function renderPanel(isCurrentUp) {
   }
 
   $('analysisContent').innerHTML = html;
-}
-
-function drawLines(setup) {
-  priceLines.forEach(line => candleSeries.removePriceLine(line));
-  priceLines = [];
-  if (!setup || tradeState !== 'ACTIVE') return; 
-  
-  const addLine = (price, color, title, style) => {
-    const line = candleSeries.createPriceLine({ price, color, lineWidth: 2, lineStyle: style, axisLabelVisible: true, title });
-    priceLines.push(line);
-  };
-  addLine(setup.entry, '#2962ff', 'Entrée', LightweightCharts.LineStyle.Solid);
-  addLine(setup.sl, '#ef5350', 'SL', LightweightCharts.LineStyle.Dashed);
-  addLine(setup.tp, '#26a69a', 'TP (RR2)', LightweightCharts.LineStyle.Dashed);
 }
 
 window.addEventListener('load', () => {
