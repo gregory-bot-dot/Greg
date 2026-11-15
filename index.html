@@ -201,9 +201,12 @@ let tradeState = 'IDLE';
 let cooldownEndTime = 0; 
 let lastTrade = null; 
 
-let tradeHistory = []; // Pour le graphique (max 10)
-let tradeJournal = []; // Pour le journal textuel (max 20)
+let tradeHistory = []; 
+let tradeJournal = []; 
 let showHistoryLines = true;
+
+// Variable pour éviter de re-trader le même Order Block
+let lastTradedOBTime = 0; 
 
 const overlayCanvas = $('overlayCanvas');
 const ctx = overlayCanvas.getContext('2d');
@@ -243,7 +246,6 @@ function drawTradeZones() {
 
             if (yEntry === null || ySL === null || yTP === null) return;
 
-            // Risque
             const topSL = Math.min(yEntry, ySL);
             const heightSL = Math.abs(yEntry - ySL);
             ctx.fillStyle = 'rgba(239, 83, 80, 0.05)';
@@ -253,7 +255,6 @@ function drawTradeZones() {
             ctx.fillRect(xStart, topSL, xEnd - xStart, heightSL);
             ctx.strokeRect(xStart, topSL, xEnd - xStart, heightSL);
 
-            // Gain
             const topTP = Math.min(yEntry, yTP);
             const heightTP = Math.abs(yEntry - yTP);
             ctx.fillStyle = 'rgba(38, 166, 154, 0.05)';
@@ -261,7 +262,6 @@ function drawTradeZones() {
             ctx.fillRect(xStart, topTP, xEnd - xStart, heightTP);
             ctx.strokeRect(xStart, topTP, xEnd - xStart, heightTP);
 
-            // Entrée
             ctx.beginPath();
             ctx.moveTo(xStart, yEntry);
             ctx.lineTo(xEnd, yEntry);
@@ -271,10 +271,9 @@ function drawTradeZones() {
         });
     }
 
-    // Trade Actif
     if (tradeState !== 'ACTIVE' || !lockedSetup) return;
 
-    const xStart = chart.timeScale().timeToCoordinate(lockedSetup.startTime) || 0;
+    const xStart = chart.timeScale().timeToCoordinate(lockedSetup.startTime) || (overlayCanvas.width - 100);
     const xEnd = overlayCanvas.width; 
 
     if (xStart >= xEnd) return;
@@ -489,6 +488,9 @@ function analyzeSMC() {
         for (let i = closedCandles.length - 3; i >= closedCandles.length - 40; i--) {
             const c = closedCandles[i]; const prev = closedCandles[i-1];
             
+            // On ignore l'Order Block si on l'a déjà tradé (évite les doublons)
+            if (c.time === lastTradedOBTime) continue;
+
             let isCHoCH = false;
             let obTop = 0, obBottom = 0, sl = 0, entry = 0;
             let direction = "";
@@ -520,7 +522,7 @@ function analyzeSMC() {
                 if (hour >= 7 && hour <= 16) { confluenceScore++; confluenceDetails.session = true; }
 
                 if (confluenceScore >= 1 && direction === (isCurrentUp ? "buy" : "sell")) {
-                    validOB = { top: obTop, bottom: obBottom, entry: entry, sl: sl };
+                    validOB = { top: obTop, bottom: obBottom, entry: entry, sl: sl, time: c.time };
                     waitReason = confluenceScore === 1 ? "Setup validé (Risque élevé)" : "Setup valide";
                     break; 
                 } else {
@@ -543,7 +545,8 @@ function analyzeSMC() {
                 direction: trends.current,
                 entry: validOB.entry, sl: validOB.sl,
                 tp: isCurrentUp ? validOB.entry + (Math.abs(validOB.entry - validOB.sl) * 2) : validOB.entry - (Math.abs(validOB.entry - validOB.sl) * 2),
-                startTime: currentTime
+                startTime: validOB.time, // On utilise l'heure de l'OB pour dessiner
+                obTime: validOB.time
             };
             tradeState = 'ACTIVE';
             updateTradeStatus(currentPrice, isCurrentUp);
@@ -575,7 +578,10 @@ function saveLastTrade(setup, result, endTime) {
 
     lastTrade = tradeData;
 
-    // 1. Ajout à l'historique visuel (pour les rectangles)
+    // Mémoriser qu'on a tradé cet OB pour ne pas le reprendre
+    lastTradedOBTime = setup.obTime;
+
+    // 1. Ajout à l'historique visuel
     tradeHistory.push({
         startTime: setup.startTime,
         endTime: endTime,
@@ -585,11 +591,11 @@ function saveLastTrade(setup, result, endTime) {
         type: setup.type,
         result: result
     });
-    if (tradeHistory.length > 10) tradeHistory.shift(); // Garde max 10 sur le graphique
+    if (tradeHistory.length > 10) tradeHistory.shift();
 
     // 2. Ajout au Journal textuel
     tradeJournal.push(tradeData);
-    if (tradeJournal.length > 20) tradeJournal.shift(); // Garde max 20 dans le journal
+    if (tradeJournal.length > 20) tradeJournal.shift();
 
     // UI
     $('lastTradeBox').style.display = 'block';
@@ -615,7 +621,6 @@ function renderJournal() {
     const dec = getDecimals(currentSymbol);
     const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
 
-    // On affiche du plus récent au plus ancien
     let html = '';
     for (let i = tradeJournal.length - 1; i >= 0; i--) {
         const t = tradeJournal[i];
@@ -650,7 +655,7 @@ function updateTradeStatus(price, isCurrentUp, timeLeftStr) {
     statusDiv.className = ''; 
 
     if (tradeState === 'COOLDOWN') {
-        statusDiv.innerHTML = `😴 Pause (${timeLeftStr})<br><button class="btn-skip" onclick="skipCooldown()">Passer l'attente</button>`; 
+        statusDiv.innerHTML = `😴 Pause (${timeLeftStr})<br><button class="btn-skip" onclick="refreshData()">Rafraîchir</button>`; 
         statusDiv.classList.add('status-cooldown'); return;
     }
     if (!lockedSetup) {
@@ -681,12 +686,8 @@ function updateTradeStatus(price, isCurrentUp, timeLeftStr) {
     }
 }
 
-window.skipCooldown = function() {
-    if (tradeState === 'COOLDOWN') {
-        tradeState = 'IDLE';
-        cooldownEndTime = 0;
-        analyzeSMC(); 
-    }
+window.refreshData = function() {
+    fetchMainData();
 };
 
 $('btnToggleHist').addEventListener('click', () => {
@@ -706,6 +707,7 @@ $('btnClearJournal').addEventListener('click', () => {
         tradeJournal = [];
         tradeHistory = [];
         lastTrade = null;
+        lastTradedOBTime = 0;
         $('lastTradeBox').style.display = 'none';
         renderJournal();
         drawTradeZones();
@@ -757,14 +759,14 @@ window.addEventListener('load', () => {
 
 $('symbolSelect').addEventListener('change', (e) => { 
     currentSymbol = e.target.value; localStorage.setItem('cv_symbol', currentSymbol); 
-    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; cooldownEndTime = 0; 
+    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; cooldownEndTime = 0; lastTradedOBTime = 0;
     tradeHistory = []; tradeJournal = []; renderJournal();
     $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
     fetchMainData(); fetchHTF(); 
 });
 $('tfSelect').addEventListener('change', (e) => { 
     currentTF = e.target.value; localStorage.setItem('cv_tf', currentTF); 
-    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; cooldownEndTime = 0; 
+    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; cooldownEndTime = 0; lastTradedOBTime = 0;
     tradeHistory = []; tradeJournal = []; renderJournal();
     $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
     updateHTFTargets(); fetchMainData(); fetchHTF(); 
