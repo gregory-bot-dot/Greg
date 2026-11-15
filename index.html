@@ -40,15 +40,21 @@
   .mtf-badge.up { border-color: var(--up); color: var(--up); background: rgba(38,166,154,0.1); }
   .mtf-badge.down { border-color: var(--down); color: var(--down); background: rgba(239,83,80,0.1); }
 
-  /* Statut cliquable pour passer la pause */
-  #tradeStatus { padding: 12px 15px; font-weight: bold; font-size: 13px; text-align: center; border-bottom: 1px solid var(--line); transition: 0.3s; cursor: pointer; }
-  #tradeStatus:active { opacity: 0.7; }
+  #tradeStatus { padding: 12px 15px; font-weight: bold; font-size: 13px; text-align: center; border-bottom: 1px solid var(--line); transition: 0.3s; }
   .status-wait { background: rgba(255,152,0,0.15); color: var(--warn); }
   .status-entry { background: rgba(41,98,255,0.2); color: var(--acc); border-left: 4px solid var(--acc); }
   .status-progress { background: rgba(38,166,154,0.15); color: var(--up); }
   .status-invalid { background: rgba(239,83,80,0.15); color: var(--down); }
-  .status-cooldown { background: rgba(139,148,168,0.15); color: var(--muted); border-left: 4px solid var(--muted); }
+  .status-cooldown { background: rgba(139,148,168,0.15); color: var(--muted); border-left: 4px solid var(--muted); display: flex; flex-direction: column; gap: 8px;}
   .status-confluence { background: rgba(156,39,176,0.2); color: #e1bee7; border-left: 4px solid #9c27b0; }
+
+  /* Bouton passer la pause */
+  .btn-skip {
+    background: var(--panel2); border: 1px solid var(--line2); color: var(--txt);
+    padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold;
+    width: fit-content; margin: 0 auto;
+  }
+  .btn-skip:active { background: var(--line); }
 
   #confluenceBox { display: none; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(41,98,255,0.05); }
   .conf-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; display: flex; justify-content: space-between; }
@@ -113,8 +119,8 @@
       <div class="mtf-badge" id="badge-htf2">...</div>
     </div>
 
-    <!-- Statut cliquable -->
-    <div id="tradeStatus" class="status-wait" title="Cliquez pour forcer la recherche">Calcul du statut...</div>
+    <!-- Statut avec bouton intégré -->
+    <div id="tradeStatus" class="status-wait">Calcul du statut...</div>
 
     <div id="confluenceBox">
       <div class="conf-title">
@@ -159,11 +165,22 @@ let trends = { current: 'neutral', htf1: 'neutral', htf2: 'neutral' };
 let currentHtf1 = '15m'; let currentHtf2 = '4h';
 
 let lockedSetup = null;
-let tradeState = 'IDLE'; let cooldownCounter = 0;
+let tradeState = 'IDLE'; 
+let cooldownEndTime = 0; // Stocke le timestamp de fin de pause
 let lastTrade = null; 
 
 if(localStorage.getItem('cv_symbol')) currentSymbol = localStorage.getItem('cv_symbol');
 if(localStorage.getItem('cv_tf')) currentTF = localStorage.getItem('cv_tf');
+
+// Convertir le timeframe en secondes pour le cooldown
+function tfToSeconds(tf) {
+    if (tf === '1m') return 60;
+    if (tf === '5m') return 300;
+    if (tf === '15m') return 900;
+    if (tf === '1h') return 3600;
+    if (tf === '4h') return 14400;
+    return 60;
+}
 
 function getDecimals(symbol) {
   if(symbol.includes('JPY')) return 3;
@@ -297,15 +314,20 @@ function analyzeSMC() {
     const isCurrentUp = trends.current === 'up';
     const atr = calculateATR(14);
     const volSMA = calculateSMAVolume(20);
-    
-    // 1. GESTION DU COOLDOWN (Pause réduite à 3 bougies)
+    const currentTime = currentData[currentData.length - 1].time;
+
+    // 1. GESTION DU COOLDOWN (Pause basée sur le temps réel)
     if (tradeState === 'COOLDOWN') {
-        cooldownCounter--;
-        if (cooldownCounter <= 0) {
+        if (currentTime >= cooldownEndTime) {
+            // Le temps est écoulé, on reprend
             tradeState = 'IDLE';
             lockedSetup = null;
         } else {
-            updateTradeStatus(currentPrice, isCurrentUp);
+            // Calcul du temps restant (en minutes ou secondes)
+            const secondsLeft = cooldownEndTime - currentTime;
+            const timeLabel = secondsLeft >= 60 ? Math.ceil(secondsLeft / 60) + " min" : secondsLeft + " sec";
+            
+            updateTradeStatus(currentPrice, isCurrentUp, timeLabel);
             drawLines(null);
             return; 
         }
@@ -317,9 +339,14 @@ function analyzeSMC() {
             lockedSetup = null; tradeState = 'IDLE';
         } else {
             if ((lockedSetup.type === 'buy' && currentPrice >= lockedSetup.tp) || (lockedSetup.type === 'sell' && currentPrice <= lockedSetup.tp)) {
-                saveLastTrade(lockedSetup, 'TP'); tradeState = 'COOLDOWN'; cooldownCounter = 3; // 3 bougies de pause
+                saveLastTrade(lockedSetup, 'TP'); 
+                tradeState = 'COOLDOWN'; 
+                // On ajoute 3 bougies de temps au moment actuel
+                cooldownEndTime = currentTime + (3 * tfToSeconds(currentTF)); 
             } else if ((lockedSetup.type === 'buy' && currentPrice < lockedSetup.sl) || (lockedSetup.type === 'sell' && currentPrice > lockedSetup.sl)) {
-                saveLastTrade(lockedSetup, 'SL'); tradeState = 'COOLDOWN'; cooldownCounter = 3;
+                saveLastTrade(lockedSetup, 'SL'); 
+                tradeState = 'COOLDOWN'; 
+                cooldownEndTime = currentTime + (3 * tfToSeconds(currentTF));
             }
             updateTradeStatus(currentPrice, isCurrentUp);
             renderPanel(isCurrentUp);
@@ -420,12 +447,12 @@ function saveLastTrade(setup, result) {
     else { resEl.textContent = "❌ SL Touché"; resEl.style.color = "var(--down)"; }
 }
 
-function updateTradeStatus(price, isCurrentUp) {
+function updateTradeStatus(price, isCurrentUp, timeLeftStr) {
     const statusDiv = $('tradeStatus');
     statusDiv.className = ''; 
 
     if (tradeState === 'COOLDOWN') {
-        statusDiv.textContent = `😴 Pause (${cooldownCounter} bougies) - [Cliquez pour passer]`; 
+        statusDiv.innerHTML = `😴 Pause (${timeLeftStr})<br><button class="btn-skip" onclick="skipCooldown()">Passer l'attente</button>`; 
         statusDiv.classList.add('status-cooldown'); return;
     }
     if (!lockedSetup) {
@@ -456,14 +483,14 @@ function updateTradeStatus(price, isCurrentUp) {
     }
 }
 
-// Interaction pour passer la pause manuellement
-$('tradeStatus').addEventListener('click', () => {
+// Fonction globale pour le bouton "Passer l'attente"
+window.skipCooldown = function() {
     if (tradeState === 'COOLDOWN') {
         tradeState = 'IDLE';
-        cooldownCounter = 0;
-        analyzeSMC(); // Relancer l'analyse immédiatement
+        cooldownEndTime = 0;
+        analyzeSMC(); // Relance la recherche immédiatement
     }
-});
+};
 
 function renderPanel(isCurrentUp) {
   const dec = getDecimals(currentSymbol);
@@ -523,12 +550,12 @@ window.addEventListener('load', () => {
 
 $('symbolSelect').addEventListener('change', (e) => { 
     currentSymbol = e.target.value; localStorage.setItem('cv_symbol', currentSymbol); 
-    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
+    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; cooldownEndTime = 0; $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
     fetchMainData(); fetchHTF(); 
 });
 $('tfSelect').addEventListener('change', (e) => { 
     currentTF = e.target.value; localStorage.setItem('cv_tf', currentTF); 
-    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
+    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; cooldownEndTime = 0; $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
     updateHTFTargets(); fetchMainData(); fetchHTF(); 
 });
 </script>
