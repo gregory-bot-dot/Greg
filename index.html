@@ -40,7 +40,9 @@
   .mtf-badge.up { border-color: var(--up); color: var(--up); background: rgba(38,166,154,0.1); }
   .mtf-badge.down { border-color: var(--down); color: var(--down); background: rgba(239,83,80,0.1); }
 
-  #tradeStatus { padding: 12px 15px; font-weight: bold; font-size: 13px; text-align: center; border-bottom: 1px solid var(--line); transition: 0.3s; }
+  /* Statut cliquable pour passer la pause */
+  #tradeStatus { padding: 12px 15px; font-weight: bold; font-size: 13px; text-align: center; border-bottom: 1px solid var(--line); transition: 0.3s; cursor: pointer; }
+  #tradeStatus:active { opacity: 0.7; }
   .status-wait { background: rgba(255,152,0,0.15); color: var(--warn); }
   .status-entry { background: rgba(41,98,255,0.2); color: var(--acc); border-left: 4px solid var(--acc); }
   .status-progress { background: rgba(38,166,154,0.15); color: var(--up); }
@@ -111,7 +113,8 @@
       <div class="mtf-badge" id="badge-htf2">...</div>
     </div>
 
-    <div id="tradeStatus" class="status-wait">Calcul du statut...</div>
+    <!-- Statut cliquable -->
+    <div id="tradeStatus" class="status-wait" title="Cliquez pour forcer la recherche">Calcul du statut...</div>
 
     <div id="confluenceBox">
       <div class="conf-title">
@@ -286,7 +289,7 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC & CONFIRMATIONS (Version Assouplie)
+   LOGIQUE SMC & GESTION DU COOLDOWN
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 50) return;
@@ -295,6 +298,37 @@ function analyzeSMC() {
     const atr = calculateATR(14);
     const volSMA = calculateSMAVolume(20);
     
+    // 1. GESTION DU COOLDOWN (Pause réduite à 3 bougies)
+    if (tradeState === 'COOLDOWN') {
+        cooldownCounter--;
+        if (cooldownCounter <= 0) {
+            tradeState = 'IDLE';
+            lockedSetup = null;
+        } else {
+            updateTradeStatus(currentPrice, isCurrentUp);
+            drawLines(null);
+            return; 
+        }
+    }
+
+    // 2. GESTION DU TRADE ACTIF
+    if (tradeState === 'ACTIVE' && lockedSetup) {
+        if (lockedSetup.direction !== trends.current) {
+            lockedSetup = null; tradeState = 'IDLE';
+        } else {
+            if ((lockedSetup.type === 'buy' && currentPrice >= lockedSetup.tp) || (lockedSetup.type === 'sell' && currentPrice <= lockedSetup.tp)) {
+                saveLastTrade(lockedSetup, 'TP'); tradeState = 'COOLDOWN'; cooldownCounter = 3; // 3 bougies de pause
+            } else if ((lockedSetup.type === 'buy' && currentPrice < lockedSetup.sl) || (lockedSetup.type === 'sell' && currentPrice > lockedSetup.sl)) {
+                saveLastTrade(lockedSetup, 'SL'); tradeState = 'COOLDOWN'; cooldownCounter = 3;
+            }
+            updateTradeStatus(currentPrice, isCurrentUp);
+            renderPanel(isCurrentUp);
+            drawLines(lockedSetup);
+            return;
+        }
+    }
+
+    // 3. RECHERCHE D'UN NOUVEAU TRADE
     if (tradeState === 'IDLE') {
         const closedCandles = currentData.slice(0, -1);
         let validOB = null;
@@ -302,7 +336,6 @@ function analyzeSMC() {
         let confluenceDetails = { choch: false, displacement: false, volume: false, session: false };
         let waitReason = "";
 
-        // Recherche sur les 40 dernières bougies (au lieu de 15)
         for (let i = closedCandles.length - 3; i >= closedCandles.length - 40; i--) {
             const c = closedCandles[i]; 
             const prev = closedCandles[i-1];
@@ -311,57 +344,35 @@ function analyzeSMC() {
             let obTop = 0, obBottom = 0, sl = 0, entry = 0;
             let direction = "";
 
-            // CHoCH Haussier (Rouge -> Grosse Verte)
             if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
                 obTop = prev.high; obBottom = prev.low;
                 let isValid = true;
                 for(let j = i+1; j < currentData.length; j++) { if(currentData[j].low < (obBottom - (obBottom * 0.0002))) { isValid = false; break; } }
-                
-                if(isValid) {
-                    isCHoCH = true;
-                    direction = "buy";
-                    sl = obBottom - (obBottom * 0.0002);
-                    entry = obTop - ((obTop - obBottom)/2);
-                }
+                if(isValid) { isCHoCH = true; direction = "buy"; sl = obBottom - (obBottom * 0.0002); entry = obTop - ((obTop - obBottom)/2); }
             } 
-            // CHoCH Baissier (Verte -> Grosse Rouge)
             else if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
                 obTop = prev.high; obBottom = prev.low;
                 let isValid = true;
                 for(let j = i+1; j < currentData.length; j++) { if(currentData[j].high > (obTop + (obTop * 0.0002))) { isValid = false; break; } }
-                
-                if(isValid) {
-                    isCHoCH = true;
-                    direction = "sell";
-                    sl = obTop + (obTop * 0.0002);
-                    entry = obBottom + ((obTop - obBottom)/2);
-                }
+                if(isValid) { isCHoCH = true; direction = "sell"; sl = obTop + (obTop * 0.0002); entry = obBottom + ((obTop - obBottom)/2); }
             }
 
             if (isCHoCH) {
                 confluenceScore = 1; confluenceDetails.choch = true;
-
                 const bodySize = Math.abs(c.close - c.open);
                 const totalWick = c.high - c.low;
-                const isDispBody = bodySize > totalWick * 0.6;
-                const isDispAtr = bodySize > atr * 1.2;
-                
-                if (isDispBody && isDispAtr) { confluenceScore++; confluenceDetails.displacement = true; }
-
+                if (bodySize > totalWick * 0.6 && bodySize > atr * 1.2) { confluenceScore++; confluenceDetails.displacement = true; }
                 if (c.volume > 0 && c.volume > volSMA * 1.5) { confluenceScore++; confluenceDetails.volume = true; }
                 else if (c.volume === 0) { confluenceDetails.volume = true; }
-                
-                const date = new Date(c.time * 1000);
-                const hour = date.getUTCHours();
+                const hour = new Date(c.time * 1000).getUTCHours();
                 if (hour >= 7 && hour <= 16) { confluenceScore++; confluenceDetails.session = true; }
 
-                // On accepte si le score est >= 2 (au lieu de 3), et on signale s'il manque des critères
                 if (confluenceScore >= 2 && direction === (isCurrentUp ? "buy" : "sell")) {
                     validOB = { top: obTop, bottom: obBottom, entry: entry, sl: sl };
                     waitReason = confluenceScore === 2 ? "Setup mineur (Confirmation faible)" : "";
                     break; 
                 } else {
-                    waitReason = "Recherche d'une meilleure confluence (CHoCH sans displacement/volume)";
+                    waitReason = "Recherche d'une meilleure confluence...";
                 }
             }
         }
@@ -391,25 +402,6 @@ function analyzeSMC() {
             renderPanel(isCurrentUp);
             drawLines(null);
         }
-    } 
-    else if (tradeState === 'ACTIVE' && lockedSetup) {
-        if (lockedSetup.direction !== trends.current) {
-            lockedSetup = null; tradeState = 'IDLE';
-        } else {
-            if ((lockedSetup.type === 'buy' && currentPrice >= lockedSetup.tp) || (lockedSetup.type === 'sell' && currentPrice <= lockedSetup.tp)) {
-                saveLastTrade(lockedSetup, 'TP'); tradeState = 'COOLDOWN'; cooldownCounter = 15; 
-            } else if ((lockedSetup.type === 'buy' && currentPrice < lockedSetup.sl) || (lockedSetup.type === 'sell' && currentPrice > lockedSetup.sl)) {
-                saveLastTrade(lockedSetup, 'SL'); tradeState = 'COOLDOWN'; cooldownCounter = 15;
-            }
-            updateTradeStatus(currentPrice, isCurrentUp);
-            renderPanel(isCurrentUp);
-            drawLines(lockedSetup);
-        }
-    }
-    else if (tradeState === 'COOLDOWN') {
-        cooldownCounter--;
-        if (cooldownCounter <= 0) { tradeState = 'IDLE'; lockedSetup = null; }
-        else { updateTradeStatus(currentPrice, isCurrentUp); drawLines(null); }
     }
 
   } catch(e) { console.error("Erreur:", e); }
@@ -433,7 +425,8 @@ function updateTradeStatus(price, isCurrentUp) {
     statusDiv.className = ''; 
 
     if (tradeState === 'COOLDOWN') {
-        statusDiv.textContent = `😴 Pause (${cooldownCounter} bougies)`; statusDiv.classList.add('status-cooldown'); return;
+        statusDiv.textContent = `😴 Pause (${cooldownCounter} bougies) - [Cliquez pour passer]`; 
+        statusDiv.classList.add('status-cooldown'); return;
     }
     if (!lockedSetup) {
         statusDiv.textContent = `🔍 ${$('confReason').textContent}`; statusDiv.classList.add('status-wait'); return;
@@ -450,7 +443,6 @@ function updateTradeStatus(price, isCurrentUp) {
     if (price >= setup.entry - tolerance && price <= setup.entry + tolerance) {
         let isConfluent = (isBuy && trends.htf1 === 'up' && trends.htf2 === 'up') || (!isBuy && trends.htf1 === 'down' && trends.htf2 === 'down');
         let conflict = (isBuy && (trends.htf1 === 'down' || trends.htf2 === 'down')) || (!isBuy && (trends.htf1 === 'up' || trends.htf2 === 'up'));
-
         if (conflict) { statusDiv.textContent = `⚠️ Entrée atteinte, CONFLIT MTF`; statusDiv.classList.add('status-wait'); }
         else if (isConfluent) { statusDiv.textContent = `🔥 CONFLUENCE PARFAITE !`; statusDiv.classList.add('status-confluence'); }
         else { statusDiv.textContent = `⚡ ZONE D'ENTRÉE !`; statusDiv.classList.add('status-entry'); }
@@ -463,6 +455,15 @@ function updateTradeStatus(price, isCurrentUp) {
         statusDiv.textContent = `🚀 Trade en cours...`; statusDiv.classList.add('status-progress');
     }
 }
+
+// Interaction pour passer la pause manuellement
+$('tradeStatus').addEventListener('click', () => {
+    if (tradeState === 'COOLDOWN') {
+        tradeState = 'IDLE';
+        cooldownCounter = 0;
+        analyzeSMC(); // Relancer l'analyse immédiatement
+    }
+});
 
 function renderPanel(isCurrentUp) {
   const dec = getDecimals(currentSymbol);
