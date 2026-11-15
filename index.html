@@ -55,9 +55,10 @@
   /* DERNIER TRADE */
   #lastTradeBox { display: none; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.3); font-size: 12px; }
   .lt-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; }
-  .lt-grid { display: flex; justify-content: space-between; }
-  .lt-item b { font-family: monospace; color: #fff; }
-  .lt-result { font-weight: bold; text-align: right; }
+  .lt-grid { display: flex; justify-content: space-between; align-items: flex-end; }
+  .lt-item small { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; }
+  .lt-item b { font-family: monospace; color: #fff; font-size: 13px; }
+  .lt-result { font-weight: bold; text-align: right; font-size: 13px; }
 
   .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted);}
   
@@ -115,9 +116,9 @@
     <div id="lastTradeBox">
       <div class="lt-title">Dernier trade terminé</div>
       <div class="lt-grid">
-        <div class="lt-item"><small>Entrée</small><br><b id="lt-entry">-</b></div>
-        <div class="lt-item"><small>SL</small><br><b id="lt-sl">-</b></div>
-        <div class="lt-item"><small>TP</small><br><b id="lt-tp">-</b></div>
+        <div class="lt-item"><small>Entrée</small><b id="lt-entry">-</b></div>
+        <div class="lt-item"><small>SL</small><b id="lt-sl">-</b></div>
+        <div class="lt-item"><small>TP</small><b id="lt-tp">-</b></div>
         <div class="lt-item lt-result" id="lt-result">-</div>
       </div>
     </div>
@@ -151,8 +152,9 @@ let currentHtf2 = '4h';
 let lockedSetup = null;
 let tradeState = 'IDLE'; 
 let cooldownCounter = 0;
-let lastTrade = null; // Stocke le trade terminé
+let lastTrade = null; 
 
+// Chargement des préférences
 if(localStorage.getItem('cv_symbol')) currentSymbol = localStorage.getItem('cv_symbol');
 if(localStorage.getItem('cv_tf')) currentTF = localStorage.getItem('cv_tf');
 
@@ -164,7 +166,7 @@ function getDecimals(symbol) {
 }
 
 /* =========================================
-   LOGIQUE MTF (Timeframes supérieurs adaptatifs)
+   LOGIQUE MTF (Adaptation dynamique)
    ========================================= */
 function updateHTFTargets() {
     if (currentTF === '1m' || currentTF === '5m') {
@@ -174,10 +176,9 @@ function updateHTFTargets() {
     } else if (currentTF === '1h') {
         currentHtf1 = '4h'; currentHtf2 = '1d'; 
     } else if (currentTF === '4h') {
-        currentHtf1 = '1d'; currentHtf2 = null; // Pas de timeframe supérieur dispo sur l'API
+        currentHtf1 = '1d'; currentHtf2 = null; // Pas de TF supérieur
     }
     
-    // Mise à jour des labels
     $('badge-htf1').textContent = currentHtf1 || '--';
     $('badge-htf2').textContent = currentHtf2 || '--';
 }
@@ -267,7 +268,7 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC & GESTION DU DERNIER TRADE
+   LOGIQUE SMC & GESTION DES TRADES
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 50) return;
@@ -282,7 +283,7 @@ function analyzeSMC() {
             lockedSetup = null;
         } else {
             updateTradeStatus(currentPrice, isCurrentUp);
-            drawLines(null);
+            drawLines(null); // Pas de lignes pendant la pause
             return; 
         }
     }
@@ -290,6 +291,7 @@ function analyzeSMC() {
     // 2. GESTION DU TRADE ACTIF
     if (tradeState === 'ACTIVE' && lockedSetup) {
         if (lockedSetup.direction !== trends.current) {
+            // Invalidation si la tendance s'inverse
             lockedSetup = null; tradeState = 'IDLE';
         } else {
             // Vérifier TP
@@ -319,6 +321,7 @@ function analyzeSMC() {
         const closedCandles = currentData.slice(0, -1);
         let validOB = null;
         
+        // Recherche sur les 20 dernières bougies fermées
         for (let i = closedCandles.length - 2; i >= closedCandles.length - 20; i--) {
             const c = closedCandles[i]; const prev = closedCandles[i-1];
             
@@ -419,6 +422,7 @@ function updateTradeStatus(price, isCurrentUp) {
         return;
     }
 
+    // Si le prix entre dans la zone
     if (price >= setup.entry - tolerance && price <= setup.entry + tolerance) {
         let isConfluent = (isBuy && trends.htf1 === 'up' && trends.htf2 === 'up') || (!isBuy && trends.htf1 === 'down' && trends.htf2 === 'down');
         let conflict = (isBuy && (trends.htf1 === 'down' || trends.htf2 === 'down')) || (!isBuy && (trends.htf1 === 'up' || trends.htf2 === 'up'));
