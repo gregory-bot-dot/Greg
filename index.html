@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro</title>
+<title>ChartVision Pro — SMC Confirmé</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -14,7 +14,6 @@
   html,body{height:100%; margin:0; padding:0; overflow:hidden;}
   body{ background:var(--bg); color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:flex; flex-direction:column; }
   
-  /* HEADER */
   header{ padding:10px 15px; background:#0e1219; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   header h1{font-size:18px;margin:0;font-weight:700; white-space:nowrap;}
   header h1 span{color:var(--acc)}
@@ -27,30 +26,36 @@
     background-repeat: no-repeat; background-position: right 10px top 50%; background-size: 10px auto;
   }
   
-  /* LAYOUT */
   .app{display:flex; flex:1; overflow:hidden; position:relative;}
   @media(max-width:900px){ .app{flex-direction:column;} }
   
   .chart-container{ flex:1; position:relative; background:#05080c; min-height: 300px; }
   #chart{ position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
   
-  /* PANNEAU */
   .panel{ width:340px; background:var(--panel); border-left:1px solid var(--line); display:flex; flex-direction:column; overflow-y:auto; }
   @media(max-width:900px){ .panel{width:100%; height:55vh; border-left:none; border-top:1px solid var(--line);} }
   
-  /* BADGES MTF DYNAMIQUES */
   .mtf-row { display: flex; gap: 6px; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.2); }
   .mtf-badge { flex: 1; text-align: center; padding: 6px; border-radius: 6px; font-size: 11px; font-weight: bold; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); }
   .mtf-badge.up { border-color: var(--up); color: var(--up); background: rgba(38,166,154,0.1); }
   .mtf-badge.down { border-color: var(--down); color: var(--down); background: rgba(239,83,80,0.1); }
 
-  /* STATUT */
   #tradeStatus { padding: 12px 15px; font-weight: bold; font-size: 13px; text-align: center; border-bottom: 1px solid var(--line); transition: 0.3s; }
   .status-wait { background: rgba(255,152,0,0.15); color: var(--warn); }
   .status-entry { background: rgba(41,98,255,0.2); color: var(--acc); border-left: 4px solid var(--acc); }
   .status-progress { background: rgba(38,166,154,0.15); color: var(--up); }
   .status-invalid { background: rgba(239,83,80,0.15); color: var(--down); }
   .status-cooldown { background: rgba(139,148,168,0.15); color: var(--muted); border-left: 4px solid var(--muted); }
+  .status-confluence { background: rgba(156,39,176,0.2); color: #e1bee7; border-left: 4px solid #9c27b0; }
+
+  /* NOUVEAU : SCORE DE CONFLUENCE */
+  #confluenceBox { display: none; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(41,98,255,0.05); }
+  .conf-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .conf-score { font-size: 14px; font-weight: bold; color: var(--acc); }
+  .conf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px; }
+  .conf-item { display: flex; align-items: center; gap: 4px; }
+  .conf-item.yes { color: var(--up); }
+  .conf-item.no { color: var(--muted); opacity: 0.6; }
 
   /* DERNIER TRADE */
   #lastTradeBox { display: none; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.3); font-size: 12px; }
@@ -62,7 +67,6 @@
 
   .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted);}
   
-  /* SETUP ACTIF */
   .setup{padding:15px; border-bottom:1px solid var(--line);}
   .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.1) 0%, transparent 100%); border-left: 4px solid var(--up);}
   .setup.sell{background:linear-gradient(180deg, rgba(239,83,80,0.1) 0%, transparent 100%); border-left: 4px solid var(--down);}
@@ -103,7 +107,6 @@
   <div class="chart-container" id="chartContainer"><div id="chart"></div></div>
   
   <div class="panel">
-    <!-- BADGES MTF -->
     <div class="mtf-row">
       <div class="mtf-badge" id="badge-current">...</div>
       <div class="mtf-badge" id="badge-htf1">...</div>
@@ -112,7 +115,20 @@
 
     <div id="tradeStatus" class="status-wait">Calcul du statut...</div>
 
-    <!-- JOURNAL DU DERNIER TRADE -->
+    <!-- NOUVEAU BLOC SCORE DE CONFLUENCE -->
+    <div id="confluenceBox">
+      <div class="conf-title">
+        <span>Score de Confluence</span>
+        <span class="conf-score" id="confScore">0/5</span>
+      </div>
+      <div class="conf-grid">
+        <div class="conf-item" id="conf-1">1. CHoCH</div>
+        <div class="conf-item" id="conf-2">2. Displacement</div>
+        <div class="conf-item" id="conf-3">3. Volume</div>
+        <div class="conf-item" id="conf-4">4. Session</div>
+      </div>
+    </div>
+
     <div id="lastTradeBox">
       <div class="lt-title">Dernier trade terminé</div>
       <div class="lt-grid">
@@ -123,12 +139,8 @@
       </div>
     </div>
 
-    <div class="panel-header">
-      <div>Trade Actif</div>
-    </div>
-    <div id="analysisContent">
-      <div class="loading-text">Initialisation...</div>
-    </div>
+    <div class="panel-header"><div>Trade Actif</div></div>
+    <div id="analysisContent"><div class="loading-text">Initialisation...</div></div>
   </div>
 </div>
 
@@ -143,18 +155,13 @@ let updateInterval = null;
 let htfInterval = null;
 let priceLines = []; 
 
-// Variables de tendance
 let trends = { current: 'neutral', htf1: 'neutral', htf2: 'neutral' };
-let currentHtf1 = '15m';
-let currentHtf2 = '4h';
+let currentHtf1 = '15m'; let currentHtf2 = '4h';
 
-// Variables de trade
 let lockedSetup = null;
-let tradeState = 'IDLE'; 
-let cooldownCounter = 0;
+let tradeState = 'IDLE'; let cooldownCounter = 0;
 let lastTrade = null; 
 
-// Chargement des préférences
 if(localStorage.getItem('cv_symbol')) currentSymbol = localStorage.getItem('cv_symbol');
 if(localStorage.getItem('cv_tf')) currentTF = localStorage.getItem('cv_tf');
 
@@ -166,19 +173,47 @@ function getDecimals(symbol) {
 }
 
 /* =========================================
-   LOGIQUE MTF (Adaptation dynamique)
+   FONCTIONS DE CALCUL TECHNIQUE (SMC)
+   ========================================= */
+function calculateATR(period) {
+    if (currentData.length < period + 1) return 0;
+    let trSum = 0;
+    for (let i = currentData.length - period; i < currentData.length; i++) {
+        const current = currentData[i];
+        const prev = currentData[i-1];
+        const tr = Math.max(current.high - current.low, 
+                            Math.abs(current.high - prev.close), 
+                            Math.abs(current.low - prev.close));
+        trSum += tr;
+    }
+    return trSum / period;
+}
+
+function calculateSMAVolume(period) {
+    if (currentData.length < period) return 0;
+    let sum = 0;
+    for (let i = currentData.length - period; i < currentData.length; i++) {
+        sum += (currentData[i].volume || 0);
+    }
+    return sum / period;
+}
+
+function calculateEMA(data, period) {
+  if (!data || data.length < period) return 0;
+  const k = 2 / (period + 1);
+  let ema = data.slice(0, period).reduce((acc, c) => acc + parseFloat(c.close), 0) / period;
+  for (let i = period; i < data.length; i++) { ema = (parseFloat(data[i].close) - ema) * k + ema; }
+  return ema;
+}
+
+/* =========================================
+   LOGIQUE MTF & CHARGEMENT
    ========================================= */
 function updateHTFTargets() {
-    if (currentTF === '1m' || currentTF === '5m') {
-        currentHtf1 = '15m'; currentHtf2 = '4h';
-    } else if (currentTF === '15m') {
-        currentHtf1 = '1h'; currentHtf2 = '4h';
-    } else if (currentTF === '1h') {
-        currentHtf1 = '4h'; currentHtf2 = '1d'; 
-    } else if (currentTF === '4h') {
-        currentHtf1 = '1d'; currentHtf2 = null; // Pas de TF supérieur
-    }
-    
+    if (currentTF === '1m' || currentTF === '5m') { currentHtf1 = '15m'; currentHtf2 = '4h'; }
+    else if (currentTF === '15m') { currentHtf1 = '1h'; currentHtf2 = '4h'; }
+    else if (currentTF === '1h') { currentHtf1 = '4h'; currentHtf2 = '1d'; }
+    else if (currentTF === '4h') { currentHtf1 = '1d'; currentHtf2 = null; }
     $('badge-htf1').textContent = currentHtf1 || '--';
     $('badge-htf2').textContent = currentHtf2 || '--';
 }
@@ -199,7 +234,6 @@ function initChart() {
     chart.applyOptions({ width: newRect.width, height: newRect.height });
   });
   resizeObserver.observe(chartContainer);
-  
   $('symbolSelect').value = currentSymbol;
   $('tfSelect').value = currentTF;
   updateHTFTargets();
@@ -217,23 +251,14 @@ async function fetchUrl(targetUrl) {
   return null;
 }
 
-function getTrend(data) {
-  if (!data || data.length < 50) return 'neutral';
-  const k = 2 / (50 + 1);
-  let ema = data.slice(0, 50).reduce((acc, c) => acc + parseFloat(c.close), 0) / 50;
-  for (let i = 50; i < data.length; i++) { ema = (parseFloat(data[i].close) - ema) * k + ema; }
-  const lastPrice = parseFloat(data[data.length - 1].close);
-  return lastPrice > ema ? 'up' : 'down';
-}
-
 async function fetchHTF() {
     if (currentHtf1) {
         const res = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentHtf1}&limit=100&t=${Date.now()}`);
-        if (res && res.bars) { trends.htf1 = getTrend(res.bars); updateBadge('badge-htf1', currentHtf1, trends.htf1); }
+        if (res && res.bars) { trends.htf1 = calculateEMA(res.bars, 50) < parseFloat(res.bars[res.bars.length-1].close) ? 'up' : 'down'; updateBadge('badge-htf1', currentHtf1, trends.htf1); }
     }
     if (currentHtf2) {
         const res = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentHtf2}&limit=100&t=${Date.now()}`);
-        if (res && res.bars) { trends.htf2 = getTrend(res.bars); updateBadge('badge-htf2', currentHtf2, trends.htf2); }
+        if (res && res.bars) { trends.htf2 = calculateEMA(res.bars, 50) < parseFloat(res.bars[res.bars.length-1].close) ? 'up' : 'down'; updateBadge('badge-htf2', currentHtf2, trends.htf2); }
     }
 }
 
@@ -252,7 +277,7 @@ async function fetchMainData() {
       return;
   }
 
-  const parsedData = result.bars.map(d => ({ time: Math.floor(new Date(d.openTime).getTime() / 1000), open: parseFloat(d.open), high: parseFloat(d.high), low: parseFloat(d.low), close: parseFloat(d.close) }));
+  const parsedData = result.bars.map(d => ({ time: Math.floor(new Date(d.openTime).getTime() / 1000), open: parseFloat(d.open), high: parseFloat(d.high), low: parseFloat(d.low), close: parseFloat(d.close), volume: parseFloat(d.volume || 0) }));
   const uniqueData = []; const seenTimes = new Set();
   for(const item of parsedData) { if(!seenTimes.has(item.time) && !isNaN(item.time)) { seenTimes.add(item.time); uniqueData.push(item); } }
   currentData = uniqueData.sort((a, b) => a.time - b.time);
@@ -261,93 +286,106 @@ async function fetchMainData() {
   
   if (currentData.length > 0) { 
       currentPrice = currentData[currentData.length - 1].close; 
-      trends.current = getTrend(currentData);
+      trends.current = calculateEMA(currentData, 50) < currentPrice ? 'up' : 'down';
       updateBadge('badge-current', currentTF, trends.current);
       analyzeSMC(); 
   }
 }
 
 /* =========================================
-   LOGIQUE SMC & GESTION DES TRADES
+   LOGIQUE SMC & CONFIRMATIONS
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 50) return;
   try {
     const isCurrentUp = trends.current === 'up';
-
-    // 1. GESTION DU COOLDOWN
-    if (tradeState === 'COOLDOWN') {
-        cooldownCounter--;
-        if (cooldownCounter <= 0) {
-            tradeState = 'IDLE';
-            lockedSetup = null;
-        } else {
-            updateTradeStatus(currentPrice, isCurrentUp);
-            drawLines(null); // Pas de lignes pendant la pause
-            return; 
-        }
-    }
-
-    // 2. GESTION DU TRADE ACTIF
-    if (tradeState === 'ACTIVE' && lockedSetup) {
-        if (lockedSetup.direction !== trends.current) {
-            // Invalidation si la tendance s'inverse
-            lockedSetup = null; tradeState = 'IDLE';
-        } else {
-            // Vérifier TP
-            if ((lockedSetup.type === 'buy' && currentPrice >= lockedSetup.tp) || 
-                (lockedSetup.type === 'sell' && currentPrice <= lockedSetup.tp)) {
-                
-                saveLastTrade(lockedSetup, 'TP');
-                tradeState = 'COOLDOWN'; cooldownCounter = 15; 
-            } 
-            // Vérifier SL
-            else if ((lockedSetup.type === 'buy' && currentPrice < lockedSetup.sl) || 
-                     (lockedSetup.type === 'sell' && currentPrice > lockedSetup.sl)) {
-                
-                saveLastTrade(lockedSetup, 'SL');
-                tradeState = 'COOLDOWN'; cooldownCounter = 15;
-            }
-            
-            updateTradeStatus(currentPrice, isCurrentUp);
-            renderPanel(isCurrentUp);
-            drawLines(lockedSetup);
-            return;
-        }
-    }
-
-    // 3. RECHERCHE D'UN NOUVEAU TRADE
+    const atr = calculateATR(14);
+    const volSMA = calculateSMAVolume(20);
+    
+    // --- RECHERCHE D'UN NOUVEAU TRADE (avec confirmation) ---
     if (tradeState === 'IDLE') {
         const closedCandles = currentData.slice(0, -1);
         let validOB = null;
-        
-        // Recherche sur les 20 dernières bougies fermées
-        for (let i = closedCandles.length - 2; i >= closedCandles.length - 20; i--) {
-            const c = closedCandles[i]; const prev = closedCandles[i-1];
+        let confluenceScore = 0;
+        let confluenceDetails = { choch: false, displacement: false, volume: false, session: false };
+
+        // On cherche un CHoCH récent (dans les 5 dernières bougies)
+        for (let i = closedCandles.length - 3; i >= closedCandles.length - 15; i--) {
+            const c = closedCandles[i]; 
+            const prev = closedCandles[i-1];
             
-            if (isCurrentUp) {
-                if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
-                    const obTop = prev.high; const obBottom = prev.low; const sl = obBottom - (obBottom * 0.0002);
-                    let isValid = true;
-                    for(let j = i+1; j < currentData.length; j++) { if(currentData[j].low < sl) { isValid = false; break; } }
-                    if(isValid) { validOB = { top: obTop, bottom: obBottom, entry: obTop - ((obTop - obBottom)/2), sl: sl }; break; }
+            let isCHoCH = false;
+            let obTop = 0, obBottom = 0, sl = 0, entry = 0;
+
+            // Détection CHoCH Haussier (Rouge -> Grosse Verte)
+            if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
+                obTop = prev.high; obBottom = prev.low;
+                // On vérifie si le prix n'a pas invalidé l'OB
+                let isValid = true;
+                for(let j = i+1; j < currentData.length; j++) { if(currentData[j].low < (obBottom - (obBottom * 0.0002))) { isValid = false; break; } }
+                
+                if(isValid) {
+                    isCHoCH = true;
+                    sl = obBottom - (obBottom * 0.0002);
+                    entry = obTop - ((obTop - obBottom)/2);
                 }
-            } else {
-                if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
-                    const obTop = prev.high; const obBottom = prev.low; const sl = obTop + (obTop * 0.0002);
-                    let isValid = true;
-                    for(let j = i+1; j < currentData.length; j++) { if(currentData[j].high > sl) { isValid = false; break; } }
-                    if(isValid) { validOB = { top: obTop, bottom: obBottom, entry: obBottom + ((obTop - obBottom)/2), sl: sl }; break; }
+            } 
+            // Détection CHoCH Baissier (Verte -> Grosse Rouge)
+            else if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
+                obTop = prev.high; obBottom = prev.low;
+                let isValid = true;
+                for(let j = i+1; j < currentData.length; j++) { if(currentData[j].high > (obTop + (obTop * 0.0002))) { isValid = false; break; } }
+                
+                if(isValid) {
+                    isCHoCH = true;
+                    sl = obTop + (obTop * 0.0002);
+                    entry = obBottom + ((obTop - obBottom)/2);
+                }
+            }
+
+            if (isCHoCH) {
+                // --- APPLICATION DES 5 CONFIRMATIONS ---
+                confluenceScore = 1; confluenceDetails.choch = true;
+
+                // 1. Displacement (Corps > 60% et > 1.2x ATR)
+                const bodySize = Math.abs(c.close - c.open);
+                const totalWick = c.high - c.low;
+                const isDispBody = bodySize > totalWick * 0.6;
+                const isDispAtr = bodySize > atr * 1.2;
+                
+                if (isDispBody && isDispAtr) { confluenceScore++; confluenceDetails.displacement = true; }
+
+                // 2. Volume Spike (Volume > 1.5x SMA Volume)
+                // Attention: Le Forex sur Biquote a souvent volume = 0. On ne pénalise pas si le volume est nul.
+                if (c.volume > 0 && c.volume > volSMA * 1.5) { confluenceScore++; confluenceDetails.volume = true; }
+                else if (c.volume === 0) { confluenceDetails.volume = true; } // On l'accorde par défaut pour le Forex
+                
+                // 3. Session (Heure de Londres/NY approx 07:00 - 16:00 UTC)
+                const date = new Date(c.time * 1000);
+                const hour = date.getUTCHours();
+                if (hour >= 7 && hour <= 16) { confluenceScore++; confluenceDetails.session = true; }
+
+                // --- VERDICT ---
+                if (confluenceScore >= 3) {
+                    validOB = { top: obTop, bottom: obBottom, entry: entry, sl: sl };
+                    break; 
                 }
             }
         }
+
+        // Affichage du score de confluence
+        $('confluenceBox').style.display = 'block';
+        $('confScore').textContent = `${confluenceScore}/5`;
+        $('conf-1').className = 'conf-item ' + (confluenceDetails.choch ? 'yes' : 'no');
+        $('conf-2').className = 'conf-item ' + (confluenceDetails.displacement ? 'yes' : 'no');
+        $('conf-3').className = 'conf-item ' + (confluenceDetails.volume ? 'yes' : 'no');
+        $('conf-4').className = 'conf-item ' + (confluenceDetails.session ? 'yes' : 'no');
 
         if (validOB) {
             lockedSetup = {
                 type: isCurrentUp ? 'buy' : 'sell',
                 direction: trends.current,
-                entry: validOB.entry,
-                sl: validOB.sl,
+                entry: validOB.entry, sl: validOB.sl,
                 tp: isCurrentUp ? validOB.entry + (Math.abs(validOB.entry - validOB.sl) * 2) : validOB.entry - (Math.abs(validOB.entry - validOB.sl) * 2)
             };
             tradeState = 'ACTIVE';
@@ -360,25 +398,38 @@ function analyzeSMC() {
             renderPanel(isCurrentUp);
             drawLines(null);
         }
+    } 
+    // --- GESTION TRADE ACTIF ---
+    else if (tradeState === 'ACTIVE' && lockedSetup) {
+        if (lockedSetup.direction !== trends.current) {
+            lockedSetup = null; tradeState = 'IDLE';
+        } else {
+            if ((lockedSetup.type === 'buy' && currentPrice >= lockedSetup.tp) || (lockedSetup.type === 'sell' && currentPrice <= lockedSetup.tp)) {
+                saveLastTrade(lockedSetup, 'TP'); tradeState = 'COOLDOWN'; cooldownCounter = 15; 
+            } else if ((lockedSetup.type === 'buy' && currentPrice < lockedSetup.sl) || (lockedSetup.type === 'sell' && currentPrice > lockedSetup.sl)) {
+                saveLastTrade(lockedSetup, 'SL'); tradeState = 'COOLDOWN'; cooldownCounter = 15;
+            }
+            updateTradeStatus(currentPrice, isCurrentUp);
+            renderPanel(isCurrentUp);
+            drawLines(lockedSetup);
+        }
+    }
+    // --- GESTION COOLDOWN ---
+    else if (tradeState === 'COOLDOWN') {
+        cooldownCounter--;
+        if (cooldownCounter <= 0) { tradeState = 'IDLE'; lockedSetup = null; }
+        else {
+            updateTradeStatus(currentPrice, isCurrentUp);
+            drawLines(null);
+        }
     }
 
   } catch(e) { console.error("Erreur:", e); }
 }
 
 function saveLastTrade(setup, result) {
-    lastTrade = {
-        entry: setup.entry,
-        sl: setup.sl,
-        tp: setup.tp,
-        result: result
-    };
-    updateLastTradeUI();
-}
-
-function updateLastTradeUI() {
-    if (!lastTrade) return;
+    lastTrade = { entry: setup.entry, sl: setup.sl, tp: setup.tp, result: result };
     $('lastTradeBox').style.display = 'block';
-    
     const dec = getDecimals(currentSymbol);
     const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
     
@@ -387,13 +438,8 @@ function updateLastTradeUI() {
     $('lt-tp').textContent = fmt(lastTrade.tp);
     
     const resEl = $('lt-result');
-    if (lastTrade.result === 'TP') {
-        resEl.textContent = "✅ TP Atteint";
-        resEl.style.color = "var(--up)";
-    } else {
-        resEl.textContent = "❌ SL Touché";
-        resEl.style.color = "var(--down)";
-    }
+    if (lastTrade.result === 'TP') { resEl.textContent = "✅ TP Atteint"; resEl.style.color = "var(--up)"; }
+    else { resEl.textContent = "❌ SL Touché"; resEl.style.color = "var(--down)"; }
 }
 
 function updateTradeStatus(price, isCurrentUp) {
@@ -402,14 +448,11 @@ function updateTradeStatus(price, isCurrentUp) {
 
     if (tradeState === 'COOLDOWN') {
         statusDiv.textContent = `😴 Pause (${cooldownCounter} bougies restantes)`;
-        statusDiv.classList.add('status-cooldown');
-        return;
+        statusDiv.classList.add('status-cooldown'); return;
     }
-
     if (!lockedSetup) {
-        statusDiv.textContent = "🔍 Recherche d'un nouveau setup...";
-        statusDiv.classList.add('status-wait');
-        return;
+        statusDiv.textContent = "🔍 Recherche d'un setup validé (Score ≥ 3)...";
+        statusDiv.classList.add('status-wait'); return;
     }
 
     const setup = lockedSetup;
@@ -417,35 +460,23 @@ function updateTradeStatus(price, isCurrentUp) {
     const isBuy = setup.type === 'buy';
 
     if ((isBuy && price >= setup.tp) || (!isBuy && price <= setup.tp)) {
-        statusDiv.textContent = `🎯 Objectif TP atteint !`;
-        statusDiv.classList.add('status-progress');
-        return;
+        statusDiv.textContent = `🎯 Objectif TP atteint !`; statusDiv.classList.add('status-progress'); return;
     }
 
-    // Si le prix entre dans la zone
     if (price >= setup.entry - tolerance && price <= setup.entry + tolerance) {
         let isConfluent = (isBuy && trends.htf1 === 'up' && trends.htf2 === 'up') || (!isBuy && trends.htf1 === 'down' && trends.htf2 === 'down');
         let conflict = (isBuy && (trends.htf1 === 'down' || trends.htf2 === 'down')) || (!isBuy && (trends.htf1 === 'up' || trends.htf2 === 'up'));
 
-        if (conflict) {
-            statusDiv.textContent = `⚠️ Entrée atteinte, CONFLIT MTF`;
-            statusDiv.classList.add('status-wait');
-        } else if (isConfluent) {
-            statusDiv.textContent = `🔥 CONFLUENCE PARFAITE !`;
-            statusDiv.classList.add('status-entry');
-        } else {
-            statusDiv.textContent = `⚡ ZONE D'ENTRÉE ATTEINTE !`;
-            statusDiv.classList.add('status-entry');
-        }
+        if (conflict) { statusDiv.textContent = `⚠️ Entrée atteinte, CONFLIT MTF`; statusDiv.classList.add('status-wait'); }
+        else if (isConfluent) { statusDiv.textContent = `🔥 CONFLUENCE PARFAITE !`; statusDiv.classList.add('status-confluence'); }
+        else { statusDiv.textContent = `⚡ ZONE D'ENTRÉE ATTEINTE !`; statusDiv.classList.add('status-entry'); }
         return;
     }
 
     if ((isBuy && price > setup.entry) || (!isBuy && price < setup.entry)) {
-        statusDiv.textContent = `⏳ Attendre le repli vers ${setup.entry.toFixed(2)}`;
-        statusDiv.classList.add('status-wait');
+        statusDiv.textContent = `⏳ Attendre le repli vers ${setup.entry.toFixed(2)}`; statusDiv.classList.add('status-wait');
     } else {
-        statusDiv.textContent = `🚀 Trade en cours...`;
-        statusDiv.classList.add('status-progress');
+        statusDiv.textContent = `🚀 Trade en cours...`; statusDiv.classList.add('status-progress');
     }
 }
 
@@ -464,7 +495,7 @@ function renderPanel(isCurrentUp) {
       const isBuy = lockedSetup.type === 'buy';
       html += `
         <div class="setup ${isBuy ? 'buy' : 'sell'}">
-          <div class="setup-title"><span>${isBuy ? '🟢 ACHAT' : '🔴 VENTE'}</span></div>
+          <div class="setup-title"><span>${isBuy ? '🟢 ACHAT CONFIRMÉ' : '🔴 VENTE CONFIRMÉE'}</span></div>
           <div class="trade-grid">
             <div class="cell precision"><small>Entrée</small><b>${fmt(lockedSetup.entry)}</b></div>
             <div class="cell"><small>Stop-Loss</small><b>${fmt(lockedSetup.sl)}</b></div>
@@ -473,7 +504,7 @@ function renderPanel(isCurrentUp) {
         </div>
       `;
   } else {
-      html += `<div class="loading-text">Aucun setup actif. En attente de structure.</div>`;
+      html += `<div class="loading-text">Aucun setup validé pour le moment.</div>`;
   }
 
   $('analysisContent').innerHTML = html;
@@ -482,14 +513,12 @@ function renderPanel(isCurrentUp) {
 function drawLines(setup) {
   priceLines.forEach(line => candleSeries.removePriceLine(line));
   priceLines = [];
-  
   if (!setup || tradeState !== 'ACTIVE') return; 
   
   const addLine = (price, color, title, style) => {
     const line = candleSeries.createPriceLine({ price, color, lineWidth: 2, lineStyle: style, axisLabelVisible: true, title });
     priceLines.push(line);
   };
-  
   addLine(setup.entry, '#2962ff', 'Entrée', LightweightCharts.LineStyle.Solid);
   addLine(setup.sl, '#ef5350', 'SL', LightweightCharts.LineStyle.Dashed);
   addLine(setup.tp, '#26a69a', 'TP (RR2)', LightweightCharts.LineStyle.Dashed);
@@ -508,17 +537,14 @@ window.addEventListener('load', () => {
 });
 
 $('symbolSelect').addEventListener('change', (e) => { 
-    currentSymbol = e.target.value; 
-    localStorage.setItem('cv_symbol', currentSymbol); 
-    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; $('lastTradeBox').style.display = 'none';
+    currentSymbol = e.target.value; localStorage.setItem('cv_symbol', currentSymbol); 
+    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
     fetchMainData(); fetchHTF(); 
 });
 $('tfSelect').addEventListener('change', (e) => { 
-    currentTF = e.target.value; 
-    localStorage.setItem('cv_tf', currentTF); 
-    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; $('lastTradeBox').style.display = 'none';
-    updateHTFTargets();
-    fetchMainData(); fetchHTF(); 
+    currentTF = e.target.value; localStorage.setItem('cv_tf', currentTF); 
+    lockedSetup = null; tradeState = 'IDLE'; lastTrade = null; $('lastTradeBox').style.display = 'none'; $('confluenceBox').style.display = 'none';
+    updateHTFTargets(); fetchMainData(); fetchHTF(); 
 });
 </script>
 </body>
