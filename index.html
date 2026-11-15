@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — SMC Confirmé</title>
+<title>ChartVision Pro — SMC</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -48,7 +48,6 @@
   .status-cooldown { background: rgba(139,148,168,0.15); color: var(--muted); border-left: 4px solid var(--muted); }
   .status-confluence { background: rgba(156,39,176,0.2); color: #e1bee7; border-left: 4px solid #9c27b0; }
 
-  /* NOUVEAU : SCORE DE CONFLUENCE */
   #confluenceBox { display: none; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(41,98,255,0.05); }
   .conf-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; display: flex; justify-content: space-between; }
   .conf-score { font-size: 14px; font-weight: bold; color: var(--acc); }
@@ -57,7 +56,6 @@
   .conf-item.yes { color: var(--up); }
   .conf-item.no { color: var(--muted); opacity: 0.6; }
 
-  /* DERNIER TRADE */
   #lastTradeBox { display: none; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.3); font-size: 12px; }
   .lt-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; }
   .lt-grid { display: flex; justify-content: space-between; align-items: flex-end; }
@@ -115,10 +113,9 @@
 
     <div id="tradeStatus" class="status-wait">Calcul du statut...</div>
 
-    <!-- NOUVEAU BLOC SCORE DE CONFLUENCE -->
     <div id="confluenceBox">
       <div class="conf-title">
-        <span>Score de Confluence</span>
+        <span id="confReason">Score de Confluence</span>
         <span class="conf-score" id="confScore">0/5</span>
       </div>
       <div class="conf-grid">
@@ -173,7 +170,7 @@ function getDecimals(symbol) {
 }
 
 /* =========================================
-   FONCTIONS DE CALCUL TECHNIQUE (SMC)
+   CALCULS TECHNIQUES
    ========================================= */
 function calculateATR(period) {
     if (currentData.length < period + 1) return 0;
@@ -181,9 +178,7 @@ function calculateATR(period) {
     for (let i = currentData.length - period; i < currentData.length; i++) {
         const current = currentData[i];
         const prev = currentData[i-1];
-        const tr = Math.max(current.high - current.low, 
-                            Math.abs(current.high - prev.close), 
-                            Math.abs(current.low - prev.close));
+        const tr = Math.max(current.high - current.low, Math.abs(current.high - prev.close), Math.abs(current.low - prev.close));
         trSum += tr;
     }
     return trSum / period;
@@ -192,9 +187,7 @@ function calculateATR(period) {
 function calculateSMAVolume(period) {
     if (currentData.length < period) return 0;
     let sum = 0;
-    for (let i = currentData.length - period; i < currentData.length; i++) {
-        sum += (currentData[i].volume || 0);
-    }
+    for (let i = currentData.length - period; i < currentData.length; i++) { sum += (currentData[i].volume || 0); }
     return sum / period;
 }
 
@@ -207,7 +200,7 @@ function calculateEMA(data, period) {
 }
 
 /* =========================================
-   LOGIQUE MTF & CHARGEMENT
+   MTF & CHARGEMENT
    ========================================= */
 function updateHTFTargets() {
     if (currentTF === '1m' || currentTF === '5m') { currentHtf1 = '15m'; currentHtf2 = '4h'; }
@@ -293,7 +286,7 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC & CONFIRMATIONS
+   LOGIQUE SMC & CONFIRMATIONS (Version Assouplie)
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 50) return;
@@ -302,35 +295,36 @@ function analyzeSMC() {
     const atr = calculateATR(14);
     const volSMA = calculateSMAVolume(20);
     
-    // --- RECHERCHE D'UN NOUVEAU TRADE (avec confirmation) ---
     if (tradeState === 'IDLE') {
         const closedCandles = currentData.slice(0, -1);
         let validOB = null;
         let confluenceScore = 0;
         let confluenceDetails = { choch: false, displacement: false, volume: false, session: false };
+        let waitReason = "";
 
-        // On cherche un CHoCH récent (dans les 5 dernières bougies)
-        for (let i = closedCandles.length - 3; i >= closedCandles.length - 15; i--) {
+        // Recherche sur les 40 dernières bougies (au lieu de 15)
+        for (let i = closedCandles.length - 3; i >= closedCandles.length - 40; i--) {
             const c = closedCandles[i]; 
             const prev = closedCandles[i-1];
             
             let isCHoCH = false;
             let obTop = 0, obBottom = 0, sl = 0, entry = 0;
+            let direction = "";
 
-            // Détection CHoCH Haussier (Rouge -> Grosse Verte)
+            // CHoCH Haussier (Rouge -> Grosse Verte)
             if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
                 obTop = prev.high; obBottom = prev.low;
-                // On vérifie si le prix n'a pas invalidé l'OB
                 let isValid = true;
                 for(let j = i+1; j < currentData.length; j++) { if(currentData[j].low < (obBottom - (obBottom * 0.0002))) { isValid = false; break; } }
                 
                 if(isValid) {
                     isCHoCH = true;
+                    direction = "buy";
                     sl = obBottom - (obBottom * 0.0002);
                     entry = obTop - ((obTop - obBottom)/2);
                 }
             } 
-            // Détection CHoCH Baissier (Verte -> Grosse Rouge)
+            // CHoCH Baissier (Verte -> Grosse Rouge)
             else if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0001) {
                 obTop = prev.high; obBottom = prev.low;
                 let isValid = true;
@@ -338,16 +332,15 @@ function analyzeSMC() {
                 
                 if(isValid) {
                     isCHoCH = true;
+                    direction = "sell";
                     sl = obTop + (obTop * 0.0002);
                     entry = obBottom + ((obTop - obBottom)/2);
                 }
             }
 
             if (isCHoCH) {
-                // --- APPLICATION DES 5 CONFIRMATIONS ---
                 confluenceScore = 1; confluenceDetails.choch = true;
 
-                // 1. Displacement (Corps > 60% et > 1.2x ATR)
                 const bodySize = Math.abs(c.close - c.open);
                 const totalWick = c.high - c.low;
                 const isDispBody = bodySize > totalWick * 0.6;
@@ -355,27 +348,27 @@ function analyzeSMC() {
                 
                 if (isDispBody && isDispAtr) { confluenceScore++; confluenceDetails.displacement = true; }
 
-                // 2. Volume Spike (Volume > 1.5x SMA Volume)
-                // Attention: Le Forex sur Biquote a souvent volume = 0. On ne pénalise pas si le volume est nul.
                 if (c.volume > 0 && c.volume > volSMA * 1.5) { confluenceScore++; confluenceDetails.volume = true; }
-                else if (c.volume === 0) { confluenceDetails.volume = true; } // On l'accorde par défaut pour le Forex
+                else if (c.volume === 0) { confluenceDetails.volume = true; }
                 
-                // 3. Session (Heure de Londres/NY approx 07:00 - 16:00 UTC)
                 const date = new Date(c.time * 1000);
                 const hour = date.getUTCHours();
                 if (hour >= 7 && hour <= 16) { confluenceScore++; confluenceDetails.session = true; }
 
-                // --- VERDICT ---
-                if (confluenceScore >= 3) {
+                // On accepte si le score est >= 2 (au lieu de 3), et on signale s'il manque des critères
+                if (confluenceScore >= 2 && direction === (isCurrentUp ? "buy" : "sell")) {
                     validOB = { top: obTop, bottom: obBottom, entry: entry, sl: sl };
+                    waitReason = confluenceScore === 2 ? "Setup mineur (Confirmation faible)" : "";
                     break; 
+                } else {
+                    waitReason = "Recherche d'une meilleure confluence (CHoCH sans displacement/volume)";
                 }
             }
         }
 
-        // Affichage du score de confluence
         $('confluenceBox').style.display = 'block';
         $('confScore').textContent = `${confluenceScore}/5`;
+        $('confReason').textContent = waitReason || "Score de Confluence";
         $('conf-1').className = 'conf-item ' + (confluenceDetails.choch ? 'yes' : 'no');
         $('conf-2').className = 'conf-item ' + (confluenceDetails.displacement ? 'yes' : 'no');
         $('conf-3').className = 'conf-item ' + (confluenceDetails.volume ? 'yes' : 'no');
@@ -399,7 +392,6 @@ function analyzeSMC() {
             drawLines(null);
         }
     } 
-    // --- GESTION TRADE ACTIF ---
     else if (tradeState === 'ACTIVE' && lockedSetup) {
         if (lockedSetup.direction !== trends.current) {
             lockedSetup = null; tradeState = 'IDLE';
@@ -414,14 +406,10 @@ function analyzeSMC() {
             drawLines(lockedSetup);
         }
     }
-    // --- GESTION COOLDOWN ---
     else if (tradeState === 'COOLDOWN') {
         cooldownCounter--;
         if (cooldownCounter <= 0) { tradeState = 'IDLE'; lockedSetup = null; }
-        else {
-            updateTradeStatus(currentPrice, isCurrentUp);
-            drawLines(null);
-        }
+        else { updateTradeStatus(currentPrice, isCurrentUp); drawLines(null); }
     }
 
   } catch(e) { console.error("Erreur:", e); }
@@ -432,11 +420,9 @@ function saveLastTrade(setup, result) {
     $('lastTradeBox').style.display = 'block';
     const dec = getDecimals(currentSymbol);
     const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
-    
     $('lt-entry').textContent = fmt(lastTrade.entry);
     $('lt-sl').textContent = fmt(lastTrade.sl);
     $('lt-tp').textContent = fmt(lastTrade.tp);
-    
     const resEl = $('lt-result');
     if (lastTrade.result === 'TP') { resEl.textContent = "✅ TP Atteint"; resEl.style.color = "var(--up)"; }
     else { resEl.textContent = "❌ SL Touché"; resEl.style.color = "var(--down)"; }
@@ -447,12 +433,10 @@ function updateTradeStatus(price, isCurrentUp) {
     statusDiv.className = ''; 
 
     if (tradeState === 'COOLDOWN') {
-        statusDiv.textContent = `😴 Pause (${cooldownCounter} bougies restantes)`;
-        statusDiv.classList.add('status-cooldown'); return;
+        statusDiv.textContent = `😴 Pause (${cooldownCounter} bougies)`; statusDiv.classList.add('status-cooldown'); return;
     }
     if (!lockedSetup) {
-        statusDiv.textContent = "🔍 Recherche d'un setup validé (Score ≥ 3)...";
-        statusDiv.classList.add('status-wait'); return;
+        statusDiv.textContent = `🔍 ${$('confReason').textContent}`; statusDiv.classList.add('status-wait'); return;
     }
 
     const setup = lockedSetup;
@@ -460,7 +444,7 @@ function updateTradeStatus(price, isCurrentUp) {
     const isBuy = setup.type === 'buy';
 
     if ((isBuy && price >= setup.tp) || (!isBuy && price <= setup.tp)) {
-        statusDiv.textContent = `🎯 Objectif TP atteint !`; statusDiv.classList.add('status-progress'); return;
+        statusDiv.textContent = `🎯 TP atteint !`; statusDiv.classList.add('status-progress'); return;
     }
 
     if (price >= setup.entry - tolerance && price <= setup.entry + tolerance) {
@@ -469,7 +453,7 @@ function updateTradeStatus(price, isCurrentUp) {
 
         if (conflict) { statusDiv.textContent = `⚠️ Entrée atteinte, CONFLIT MTF`; statusDiv.classList.add('status-wait'); }
         else if (isConfluent) { statusDiv.textContent = `🔥 CONFLUENCE PARFAITE !`; statusDiv.classList.add('status-confluence'); }
-        else { statusDiv.textContent = `⚡ ZONE D'ENTRÉE ATTEINTE !`; statusDiv.classList.add('status-entry'); }
+        else { statusDiv.textContent = `⚡ ZONE D'ENTRÉE !`; statusDiv.classList.add('status-entry'); }
         return;
     }
 
@@ -495,7 +479,7 @@ function renderPanel(isCurrentUp) {
       const isBuy = lockedSetup.type === 'buy';
       html += `
         <div class="setup ${isBuy ? 'buy' : 'sell'}">
-          <div class="setup-title"><span>${isBuy ? '🟢 ACHAT CONFIRMÉ' : '🔴 VENTE CONFIRMÉE'}</span></div>
+          <div class="setup-title"><span>${isBuy ? '🟢 ACHAT' : '🔴 VENTE'}</span></div>
           <div class="trade-grid">
             <div class="cell precision"><small>Entrée</small><b>${fmt(lockedSetup.entry)}</b></div>
             <div class="cell"><small>Stop-Loss</small><b>${fmt(lockedSetup.sl)}</b></div>
@@ -504,7 +488,7 @@ function renderPanel(isCurrentUp) {
         </div>
       `;
   } else {
-      html += `<div class="loading-text">Aucun setup validé pour le moment.</div>`;
+      html += `<div class="loading-text">Aucun setup validé.</div>`;
   }
 
   $('analysisContent').innerHTML = html;
