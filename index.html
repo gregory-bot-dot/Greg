@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — SMC</title>
+<title>ChartVision Pro — SMC & News</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
@@ -48,12 +48,7 @@
   .status-cooldown { background: rgba(139,148,168,0.15); color: var(--muted); border-left: 4px solid var(--muted); display: flex; flex-direction: column; gap: 8px;}
   .status-confluence { background: rgba(156,39,176,0.2); color: #e1bee7; border-left: 4px solid #9c27b0; }
 
-  /* Bouton passer la pause */
-  .btn-skip {
-    background: var(--panel2); border: 1px solid var(--line2); color: var(--txt);
-    padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold;
-    width: fit-content; margin: 0 auto;
-  }
+  .btn-skip { background: var(--panel2); border: 1px solid var(--line2); color: var(--txt); padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold; width: fit-content; margin: 0 auto; }
   .btn-skip:active { background: var(--line); }
 
   #confluenceBox { display: none; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(41,98,255,0.05); }
@@ -86,6 +81,11 @@
   .cell.precision b { color: var(--acc); font-size:15px;}
 
   .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:13px; }
+
+  /* CALENDRIER ECONOMIQUE */
+  .calendar-box { padding: 10px; border-top: 1px solid var(--line); background: var(--panel); }
+  .calendar-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  iframe { width: 100%; height: 350px; border: none; border-radius: 6px; background: #fff; }
 </style>
 </head>
 <body>
@@ -105,6 +105,7 @@
       <option value="15m">15m</option>
       <option value="1h">1h</option>
       <option value="4h">4h</option>
+      <option value="1d">1D (Daily)</option>
     </select>
   </div>
 </header>
@@ -119,7 +120,6 @@
       <div class="mtf-badge" id="badge-htf2">...</div>
     </div>
 
-    <!-- Statut avec bouton intégré -->
     <div id="tradeStatus" class="status-wait">Calcul du statut...</div>
 
     <div id="confluenceBox">
@@ -147,6 +147,16 @@
 
     <div class="panel-header"><div>Trade Actif</div></div>
     <div id="analysisContent"><div class="loading-text">Initialisation...</div></div>
+
+    <!-- CALENDRIER ECONOMIQUE EN DIRECT -->
+    <div class="calendar-box">
+      <div class="calendar-title">
+        <span>📅 Calendrier Économique</span>
+      </div>
+      <!-- Iframe ForexFactory (thème clair pour la lisibilité) -->
+      <iframe src="https://sslecal2.forexprostools.com?columns=exc_flags,exc_currency,exc_importance,exc_actual,exc_forecast,exc_previous&features=datepicker,timezone&countries=5,17,29,22&calType=day&timeZone=55&lang=4" allowtransparency="true" frameborder="0"></iframe>
+    </div>
+
   </div>
 </div>
 
@@ -166,51 +176,38 @@ let currentHtf1 = '15m'; let currentHtf2 = '4h';
 
 let lockedSetup = null;
 let tradeState = 'IDLE'; 
-let cooldownEndTime = 0; // Stocke le timestamp de fin de pause
+let cooldownEndTime = 0; 
 let lastTrade = null; 
 
 if(localStorage.getItem('cv_symbol')) currentSymbol = localStorage.getItem('cv_symbol');
 if(localStorage.getItem('cv_tf')) currentTF = localStorage.getItem('cv_tf');
 
-// Convertir le timeframe en secondes pour le cooldown
 function tfToSeconds(tf) {
-    if (tf === '1m') return 60;
-    if (tf === '5m') return 300;
-    if (tf === '15m') return 900;
-    if (tf === '1h') return 3600;
-    if (tf === '4h') return 14400;
-    return 60;
+    if (tf === '1m') return 60; if (tf === '5m') return 300; if (tf === '15m') return 900; if (tf === '1h') return 3600; if (tf === '4h') return 14400; if (tf === '1d') return 86400; return 60;
 }
-
 function getDecimals(symbol) {
-  if(symbol.includes('JPY')) return 3;
-  if(symbol === 'XAUUSD') return 2;
-  if(symbol === 'BTCUSD' || symbol === 'US500' || symbol === 'US100') return 1;
-  return 5;
+  if(symbol.includes('JPY')) return 3; if(symbol === 'XAUUSD') return 2; if(symbol === 'BTCUSD' || symbol === 'US500' || symbol === 'US100') return 1; return 5;
 }
 
 /* =========================================
-   CALCULS TECHNIQUES
+   CALCULS TECHNIQUES & MTF
    ========================================= */
 function calculateATR(period) {
     if (currentData.length < period + 1) return 0;
     let trSum = 0;
     for (let i = currentData.length - period; i < currentData.length; i++) {
-        const current = currentData[i];
-        const prev = currentData[i-1];
+        const current = currentData[i]; const prev = currentData[i-1];
         const tr = Math.max(current.high - current.low, Math.abs(current.high - prev.close), Math.abs(current.low - prev.close));
         trSum += tr;
     }
     return trSum / period;
 }
-
 function calculateSMAVolume(period) {
     if (currentData.length < period) return 0;
     let sum = 0;
     for (let i = currentData.length - period; i < currentData.length; i++) { sum += (currentData[i].volume || 0); }
     return sum / period;
 }
-
 function calculateEMA(data, period) {
   if (!data || data.length < period) return 0;
   const k = 2 / (period + 1);
@@ -219,14 +216,12 @@ function calculateEMA(data, period) {
   return ema;
 }
 
-/* =========================================
-   MTF & CHARGEMENT
-   ========================================= */
 function updateHTFTargets() {
     if (currentTF === '1m' || currentTF === '5m') { currentHtf1 = '15m'; currentHtf2 = '4h'; }
     else if (currentTF === '15m') { currentHtf1 = '1h'; currentHtf2 = '4h'; }
     else if (currentTF === '1h') { currentHtf1 = '4h'; currentHtf2 = '1d'; }
     else if (currentTF === '4h') { currentHtf1 = '1d'; currentHtf2 = null; }
+    else if (currentTF === '1d') { currentHtf1 = null; currentHtf2 = null; }
     $('badge-htf1').textContent = currentHtf1 || '--';
     $('badge-htf2').textContent = currentHtf2 || '--';
 }
@@ -306,7 +301,7 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC & GESTION DU COOLDOWN
+   LOGIQUE SMC & GESTION
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 50) return;
@@ -316,37 +311,27 @@ function analyzeSMC() {
     const volSMA = calculateSMAVolume(20);
     const currentTime = currentData[currentData.length - 1].time;
 
-    // 1. GESTION DU COOLDOWN (Pause basée sur le temps réel)
     if (tradeState === 'COOLDOWN') {
         if (currentTime >= cooldownEndTime) {
-            // Le temps est écoulé, on reprend
             tradeState = 'IDLE';
             lockedSetup = null;
         } else {
-            // Calcul du temps restant (en minutes ou secondes)
             const secondsLeft = cooldownEndTime - currentTime;
             const timeLabel = secondsLeft >= 60 ? Math.ceil(secondsLeft / 60) + " min" : secondsLeft + " sec";
-            
             updateTradeStatus(currentPrice, isCurrentUp, timeLabel);
             drawLines(null);
             return; 
         }
     }
 
-    // 2. GESTION DU TRADE ACTIF
     if (tradeState === 'ACTIVE' && lockedSetup) {
         if (lockedSetup.direction !== trends.current) {
             lockedSetup = null; tradeState = 'IDLE';
         } else {
             if ((lockedSetup.type === 'buy' && currentPrice >= lockedSetup.tp) || (lockedSetup.type === 'sell' && currentPrice <= lockedSetup.tp)) {
-                saveLastTrade(lockedSetup, 'TP'); 
-                tradeState = 'COOLDOWN'; 
-                // On ajoute 3 bougies de temps au moment actuel
-                cooldownEndTime = currentTime + (3 * tfToSeconds(currentTF)); 
+                saveLastTrade(lockedSetup, 'TP'); tradeState = 'COOLDOWN'; cooldownEndTime = currentTime + (3 * tfToSeconds(currentTF)); 
             } else if ((lockedSetup.type === 'buy' && currentPrice < lockedSetup.sl) || (lockedSetup.type === 'sell' && currentPrice > lockedSetup.sl)) {
-                saveLastTrade(lockedSetup, 'SL'); 
-                tradeState = 'COOLDOWN'; 
-                cooldownEndTime = currentTime + (3 * tfToSeconds(currentTF));
+                saveLastTrade(lockedSetup, 'SL'); tradeState = 'COOLDOWN'; cooldownEndTime = currentTime + (3 * tfToSeconds(currentTF));
             }
             updateTradeStatus(currentPrice, isCurrentUp);
             renderPanel(isCurrentUp);
@@ -355,7 +340,6 @@ function analyzeSMC() {
         }
     }
 
-    // 3. RECHERCHE D'UN NOUVEAU TRADE
     if (tradeState === 'IDLE') {
         const closedCandles = currentData.slice(0, -1);
         let validOB = null;
@@ -483,12 +467,11 @@ function updateTradeStatus(price, isCurrentUp, timeLeftStr) {
     }
 }
 
-// Fonction globale pour le bouton "Passer l'attente"
 window.skipCooldown = function() {
     if (tradeState === 'COOLDOWN') {
         tradeState = 'IDLE';
         cooldownEndTime = 0;
-        analyzeSMC(); // Relance la recherche immédiatement
+        analyzeSMC(); 
     }
 };
 
