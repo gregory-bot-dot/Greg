@@ -75,7 +75,6 @@
 
   .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted); display: flex; justify-content: space-between; align-items: center;}
   
-  /* TRADE ACTIF COMPACT */
   .setup-compact {
     display: flex; justify-content: space-between; align-items: center;
     padding: 12px 15px; border-bottom: 1px solid var(--line);
@@ -191,11 +190,11 @@
     <div id="nextZoneBox">
       <div class="nz-title">Prochaine Zone (Cliquez pour masquer/afficher)</div>
       <div class="nz-grid">
-        <div class="nz-cell" id="nz-buy" onclick="toggleNextZone('buy')">
+        <div class="nz-cell" id="nz-buy">
           <small>Zone d'achat</small>
           <b>-</b>
         </div>
-        <div class="nz-cell" id="nz-sell" onclick="toggleNextZone('sell')">
+        <div class="nz-cell" id="nz-sell">
           <small>Zone de vente</small>
           <b>-</b>
         </div>
@@ -261,7 +260,6 @@ function loadHistory() {
     tradeJournal = JSON.parse(localStorage.getItem(keys.journal)) || []; 
     lastTradedOBTime = parseFloat(localStorage.getItem(keys.lastOB)) || 0;
     
-    // Nettoyage des doublons
     const uniqueJournal = [];
     const seen = new Set();
     tradeJournal.forEach(t => {
@@ -284,7 +282,7 @@ function getDecimals(symbol) {
 /* =========================================
    TOGGLE PROCHAINES ZONES
    ========================================= */
-window.toggleNextZone = function(type) {
+function toggleNextZone(type) {
     if (type === 'buy') {
         showNextBuy = !showNextBuy;
         $('nz-buy').classList.toggle('hidden-zone', !showNextBuy);
@@ -294,6 +292,12 @@ window.toggleNextZone = function(type) {
     }
     drawTradeZones();
 }
+
+// Ajout des écouteurs d'événements après chargement de la page
+setTimeout(() => {
+    $('nz-buy').addEventListener('click', () => toggleNextZone('buy'));
+    $('nz-sell').addEventListener('click', () => toggleNextZone('sell'));
+}, 500);
 
 /* =========================================
    DESSIN DES ZONES
@@ -346,14 +350,15 @@ function drawTradeZones() {
     }
 
     if (tradeState !== 'ACTIVE') {
+        // On augmente l'opacité pour que ça soit bien visible
         if (showNextBuy && nextBuyZone) {
             const yTop = candleSeries.priceToCoordinate(nextBuyZone.top);
             const yBot = candleSeries.priceToCoordinate(nextBuyZone.bottom);
             if (yTop !== null && yBot !== null) {
-                ctx.fillStyle = 'rgba(38, 166, 154, 0.05)';
+                ctx.fillStyle = 'rgba(38, 166, 154, 0.15)'; // Plus visible
                 ctx.setLineDash([5, 5]);
-                ctx.strokeStyle = 'rgba(38, 166, 154, 0.4)';
-                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'rgba(38, 166, 154, 0.8)'; // Plus visible
+                ctx.lineWidth = 2;
                 ctx.fillRect(0, yTop, overlayCanvas.width, yBot - yTop);
                 ctx.strokeRect(0, yTop, overlayCanvas.width, yBot - yTop);
                 ctx.setLineDash([]);
@@ -366,10 +371,10 @@ function drawTradeZones() {
             const yTop = candleSeries.priceToCoordinate(nextSellZone.top);
             const yBot = candleSeries.priceToCoordinate(nextSellZone.bottom);
             if (yTop !== null && yBot !== null) {
-                ctx.fillStyle = 'rgba(239, 83, 80, 0.05)';
+                ctx.fillStyle = 'rgba(239, 83, 80, 0.15)'; // Plus visible
                 ctx.setLineDash([5, 5]);
-                ctx.strokeStyle = 'rgba(239, 83, 80, 0.4)';
-                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'rgba(239, 83, 80, 0.8)'; // Plus visible
+                ctx.lineWidth = 2;
                 ctx.fillRect(0, yTop, overlayCanvas.width, yBot - yTop);
                 ctx.strokeRect(0, yTop, overlayCanvas.width, yBot - yTop);
                 ctx.setLineDash([]);
