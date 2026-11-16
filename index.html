@@ -96,16 +96,6 @@
 
   .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:13px; }
 
-  #nextZoneBox { padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(156,39,176,0.05); display: none; }
-  .nz-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; }
-  .nz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .nz-cell { background: var(--panel2); padding: 8px; border-radius: 4px; border: 1px solid var(--line); text-align: center; cursor: pointer; transition: 0.2s; user-select: none; }
-  .nz-cell:active { transform: scale(0.96); }
-  .nz-cell.hidden-zone { opacity: 0.3; filter: grayscale(1); border-style: dashed; }
-  .nz-cell.hidden-zone b { text-decoration: line-through; }
-  .nz-cell small { display: block; color: var(--muted); font-size: 10px; margin-bottom: 4px; }
-  .nz-cell b { font-family: monospace; font-size: 13px; color: #fff; }
-
   #journalContent { padding: 10px 15px; display: flex; flex-direction: column; gap: 6px; background: var(--panel); }
   .journal-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--panel2); border-radius: 6px; border-left: 3px solid var(--muted); font-size: 11px; }
   .journal-item.win { border-left-color: var(--up); background: rgba(38,166,154,0.05); }
@@ -189,20 +179,6 @@
     <div class="panel-header"><div>Trade Actif</div></div>
     <div id="analysisContent"><div class="loading-text">Initialisation...</div></div>
 
-    <div id="nextZoneBox">
-      <div class="nz-title">Prochaine Zone (Cliquez pour masquer/afficher)</div>
-      <div class="nz-grid">
-        <div class="nz-cell" id="nz-buy">
-          <small>Zone d'achat</small>
-          <b>-</b>
-        </div>
-        <div class="nz-cell" id="nz-sell">
-          <small>Zone de vente</small>
-          <b>-</b>
-        </div>
-      </div>
-    </div>
-
     <div class="panel-header">
       <span>Journal (10 derniers)</span>
       <button id="btnClearJournal" style="background:none; border:none; color:var(--muted); font-size:10px; cursor:pointer;">Effacer</button>
@@ -232,11 +208,7 @@ let tradeState = 'IDLE';
 let cooldownEndTime = 0; 
 let lastTrade = null; 
 
-let nextBuyZone = null;
-let nextSellZone = null;
-let showNextBuy = true;
-let showNextSell = true;
-let fvgs = []; // Nouveaux FVG
+let fvgs = []; 
 
 let tradeHistory = []; 
 let tradeJournal = []; 
@@ -283,26 +255,7 @@ function getDecimals(symbol) {
 }
 
 /* =========================================
-   TOGGLE PROCHAINES ZONES
-   ========================================= */
-function toggleNextZone(type) {
-    if (type === 'buy') {
-        showNextBuy = !showNextBuy;
-        $('nz-buy').classList.toggle('hidden-zone', !showNextBuy);
-    } else {
-        showNextSell = !showNextSell;
-        $('nz-sell').classList.toggle('hidden-zone', !showNextSell);
-    }
-    drawTradeZones();
-}
-
-setTimeout(() => {
-    $('nz-buy').addEventListener('click', () => toggleNextZone('buy'));
-    $('nz-sell').addEventListener('click', () => toggleNextZone('sell'));
-}, 500);
-
-/* =========================================
-   DESSIN DES ZONES
+   DESSIN DES ZONES (FVG ÉPURÉS)
    ========================================= */
 function drawTradeZones() {
     const rect = $('chart').getBoundingClientRect();
@@ -312,19 +265,34 @@ function drawTradeZones() {
     }
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
-    // 1. FVG (Nouveauté)
+    // 1. FVG (Rendu épuré : pointillés fins et opacité très faible)
     fvgs.forEach(fvg => {
+        const xStart = chart.timeScale().timeToCoordinate(fvg.startTime);
         const yTop = candleSeries.priceToCoordinate(fvg.top);
         const yBot = candleSeries.priceToCoordinate(fvg.bottom);
-        if (yTop !== null && yBot !== null) {
-            ctx.fillStyle = 'rgba(156, 39, 176, 0.15)'; // Violet
-            ctx.setLineDash([2, 2]);
-            ctx.strokeStyle = 'rgba(156, 39, 176, 0.5)';
-            ctx.lineWidth = 1;
-            ctx.fillRect(0, yTop, overlayCanvas.width, yBot - yTop);
-            ctx.strokeRect(0, yTop, overlayCanvas.width, yBot - yTop);
-            ctx.setLineDash([]);
-        }
+        
+        if (xStart === null || yTop === null || yBot === null) return;
+
+        ctx.fillStyle = 'rgba(156, 39, 176, 0.05)'; // Quasi transparent
+        ctx.strokeStyle = 'rgba(156, 39, 176, 0.4)'; // Violet discret
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]); // Pointillés
+        
+        // On dessine le FVG de sa création jusqu'au bord droit
+        ctx.fillRect(xStart, yTop, overlayCanvas.width - xStart, yBot - yTop);
+        
+        // On trace seulement les lignes horizontales (top et bottom) pour épurer
+        ctx.beginPath();
+        ctx.moveTo(xStart, yTop);
+        ctx.lineTo(overlayCanvas.width, yTop);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(xStart, yBot);
+        ctx.lineTo(overlayCanvas.width, yBot);
+        ctx.stroke();
+        
+        ctx.setLineDash([]);
     });
 
     if (showHistoryLines) {
@@ -364,41 +332,6 @@ function drawTradeZones() {
             ctx.stroke();
             ctx.setLineDash([]);
         });
-    }
-
-    if (tradeState !== 'ACTIVE') {
-        if (showNextBuy && nextBuyZone) {
-            const yTop = candleSeries.priceToCoordinate(nextBuyZone.top);
-            const yBot = candleSeries.priceToCoordinate(nextBuyZone.bottom);
-            if (yTop !== null && yBot !== null) {
-                ctx.fillStyle = 'rgba(38, 166, 154, 0.1)'; 
-                ctx.setLineDash([5, 5]);
-                ctx.strokeStyle = 'rgba(38, 166, 154, 0.6)'; 
-                ctx.lineWidth = 1;
-                ctx.fillRect(0, yTop, overlayCanvas.width, yBot - yTop);
-                ctx.strokeRect(0, yTop, overlayCanvas.width, yBot - yTop);
-                ctx.setLineDash([]);
-                ctx.fillStyle = '#26a69a'; 
-                ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'left';
-                ctx.fillText('Prochaine zone ACHAT', 10, yTop - 5);
-            }
-        }
-        if (showNextSell && nextSellZone) {
-            const yTop = candleSeries.priceToCoordinate(nextSellZone.top);
-            const yBot = candleSeries.priceToCoordinate(nextSellZone.bottom);
-            if (yTop !== null && yBot !== null) {
-                ctx.fillStyle = 'rgba(239, 83, 80, 0.1)'; 
-                ctx.setLineDash([5, 5]);
-                ctx.strokeStyle = 'rgba(239, 83, 80, 0.6)';
-                ctx.lineWidth = 1;
-                ctx.fillRect(0, yTop, overlayCanvas.width, yBot - yTop);
-                ctx.strokeRect(0, yTop, overlayCanvas.width, yBot - yTop);
-                ctx.setLineDash([]);
-                ctx.fillStyle = '#ef5350'; 
-                ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'left';
-                ctx.fillText('Prochaine zone VENTE', 10, yTop - 5);
-            }
-        }
     }
 
     if (tradeState !== 'ACTIVE' || !lockedSetup) return;
@@ -507,12 +440,10 @@ function calculateEMA(data, period) {
   return ema;
 }
 
-// Nouveau : Détection de structure (BOS)
 function analyzeStructure(data) {
     if (!data || data.length < 20) return { trend: 'neutral', bos: 'NEUTRAL' };
     const lastClose = parseFloat(data[data.length-1].close);
     
-    // Trouver le dernier sommet et creux (pivots simples)
     let lastHigh = -1, lastLow = Infinity;
     for (let i = data.length - 15; i < data.length - 2; i++) {
         if (data[i].high > data[i-1].high && data[i].high > data[i+1].high) lastHigh = Math.max(lastHigh, data[i].high);
@@ -578,7 +509,7 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC & PROCHAINE ZONE
+   LOGIQUE SMC
    ========================================= */
 function analyzeSMC() {
   if (currentData.length < 50) return;
@@ -602,51 +533,21 @@ function analyzeSMC() {
     
     const currentTime = currentData[currentData.length - 1].time;
 
-    // --- RECHERCHE DES FVG (Nouveauté) ---
+    // --- RECHERCHE DES FVG (On garde l'analyse) ---
     fvgs = [];
     for (let i = currentData.length - 15; i < currentData.length - 2; i++) {
-        // FVG Haussier
         if (currentData[i+2].low > currentData[i].high) {
-            fvgs.push({ type: 'bull', top: currentData[i+2].low, bottom: currentData[i].high });
+            fvgs.push({ type: 'bull', top: currentData[i+2].low, bottom: currentData[i].high, startTime: currentData[i].time });
         }
-        // FVG Baissier
         if (currentData[i+2].high < currentData[i].low) {
-            fvgs.push({ type: 'bear', top: currentData[i].low, bottom: currentData[i+2].high });
+            fvgs.push({ type: 'bear', top: currentData[i].low, bottom: currentData[i+2].high, startTime: currentData[i].time });
         }
     }
-    // On ne garde que les FVG récents qui n'ont pas été comblés
+    // On garde les FVG qui ne sont pas encore comblés
     fvgs = fvgs.filter(f => {
-        if (f.type === 'bull') return currentPrice > f.top; // Prix au dessus
-        else return currentPrice < f.bottom; // Prix en dessous
+        if (f.type === 'bull') return currentPrice > f.top;
+        else return currentPrice < f.bottom;
     }).slice(-3); 
-
-    // --- RECHERCHE DE LA PROCHAINE ZONE (Future OB) ---
-    nextBuyZone = null;
-    nextSellZone = null;
-    for (let i = currentData.length - 5; i >= currentData.length - 50; i--) {
-        const c = currentData[i];
-        if (!c) continue;
-        const cSize = Math.abs(c.close - c.open);
-        
-        if (cSize > atr * 0.5) {
-            if (c.close < c.open && c.high < currentPrice && !nextBuyZone) {
-                nextBuyZone = { top: c.high, bottom: c.low };
-            }
-            if (c.close > c.open && c.low > currentPrice && !nextSellZone) {
-                nextSellZone = { top: c.high, bottom: c.low };
-            }
-        }
-    }
-    
-    $('nextZoneBox').style.display = (nextBuyZone || nextSellZone) ? 'block' : 'none';
-    const dec = getDecimals(currentSymbol);
-    const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
-    
-    if(nextBuyZone) $('nz-buy').querySelector('b').textContent = `${fmt(nextBuyZone.bottom)} - ${fmt(nextBuyZone.top)}`;
-    else $('nz-buy').querySelector('b').textContent = '-';
-    
-    if(nextSellZone) $('nz-sell').querySelector('b').textContent = `${fmt(nextSellZone.bottom)} - ${fmt(nextSellZone.top)}`;
-    else $('nz-sell').querySelector('b').textContent = '-';
 
     // --- GESTION DU COOLDOWN ---
     if (tradeState === 'COOLDOWN') {
@@ -717,7 +618,6 @@ function analyzeSMC() {
             }
 
             if (isCHoCH) {
-                // --- NOUVEAU : ANALYSE DE LA SANTÉ DE L'OB (Mitigation) ---
                 let touches = 0;
                 for(let j = i+1; j < currentData.length; j++) {
                     if (currentData[j].low <= obTop && currentData[j].high >= obBottom) touches++;
@@ -775,7 +675,7 @@ function analyzeSMC() {
                     entry: validOB.entry, sl: validOB.sl, tp: tempTP,
                     startTime: validOB.time,
                     obTime: validOB.time,
-                    touches: validOB.touches, // Nouveau : on garde l'info
+                    touches: validOB.touches,
                     entryTouched: false 
                 };
                 tradeState = 'ACTIVE';
@@ -966,7 +866,6 @@ function renderPanel(isCurrentUp) {
   if (lockedSetup && tradeState === 'ACTIVE') {
       const isBuy = lockedSetup.type === 'buy';
       
-      // Nouveau : Affichage de la santé de l'OB
       let obHealthHtml = '';
       if (lockedSetup.touches === 0) obHealthHtml = '<span class="ob-health ob-virgin">🛡️ OB Vierge</span>';
       else if (lockedSetup.touches === 1) obHealthHtml = '<span class="ob-health ob-tested">⚠️ OB Testé 1x</span>';
