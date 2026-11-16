@@ -75,24 +75,35 @@
 
   .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted); display: flex; justify-content: space-between; align-items: center;}
   
-  .setup{padding:15px; border-bottom:1px solid var(--line);}
-  .setup.buy{background:linear-gradient(180deg, rgba(38,166,154,0.1) 0%, transparent 100%); border-left: 4px solid var(--up);}
-  .setup.sell{background:linear-gradient(180deg, rgba(239,83,80,0.1) 0%, transparent 100%); border-left: 4px solid var(--down);}
-  
-  .setup-title{font-weight:bold; font-size:15px; margin-bottom:12px; color: #fff;}
-  .trade-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
-  .cell{background:rgba(0,0,0,0.3); padding:10px; border-radius:4px; border:1px solid var(--line);}
-  .cell small{display:block; color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:2px;}
-  .cell b{font-family:monospace; font-size:14px; color:#fff;}
-  .cell.precision { border-color: var(--acc); background: rgba(41,98,255,0.15); }
-  .cell.precision b { color: var(--acc); font-size:15px;}
+  /* TRADE ACTIF COMPACT */
+  .setup-compact {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 15px; border-bottom: 1px solid var(--line);
+  }
+  .setup-compact.buy { background: rgba(38,166,154,0.05); border-left: 4px solid var(--up); }
+  .setup-compact.sell { background: rgba(239,83,80,0.05); border-left: 4px solid var(--down); }
+  .sc-item { text-align: center; }
+  .sc-label { display: block; font-size: 9px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px;}
+  .sc-val { font-family: monospace; font-size: 14px; font-weight: bold; }
+  .sc-val.entry { color: var(--acc); }
+  .sc-val.sl { color: var(--down); }
+  .sc-val.tp { color: var(--up); }
 
   .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:13px; }
 
+  /* PROCHAINE ZONE CLIQUABLE */
   #nextZoneBox { padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(156,39,176,0.05); display: none; }
   .nz-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; }
   .nz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .nz-cell { background: var(--panel2); padding: 8px; border-radius: 4px; border: 1px solid var(--line); text-align: center; }
+  
+  .nz-cell { 
+    background: var(--panel2); padding: 8px; border-radius: 4px; border: 1px solid var(--line); 
+    text-align: center; cursor: pointer; transition: 0.2s; user-select: none;
+  }
+  .nz-cell:active { transform: scale(0.96); }
+  .nz-cell.hidden-zone { opacity: 0.3; filter: grayscale(1); border-style: dashed; }
+  .nz-cell.hidden-zone b { text-decoration: line-through; }
+
   .nz-cell small { display: block; color: var(--muted); font-size: 10px; margin-bottom: 4px; }
   .nz-cell b { font-family: monospace; font-size: 13px; color: #fff; }
 
@@ -178,13 +189,13 @@
     <div id="analysisContent"><div class="loading-text">Initialisation...</div></div>
 
     <div id="nextZoneBox">
-      <div class="nz-title">Prochaine Zone (En Attente)</div>
+      <div class="nz-title">Prochaine Zone (Cliquez pour masquer/afficher)</div>
       <div class="nz-grid">
-        <div class="nz-cell" id="nz-buy">
+        <div class="nz-cell" id="nz-buy" onclick="toggleNextZone('buy')">
           <small>Zone d'achat</small>
           <b>-</b>
         </div>
-        <div class="nz-cell" id="nz-sell">
+        <div class="nz-cell" id="nz-sell" onclick="toggleNextZone('sell')">
           <small>Zone de vente</small>
           <b>-</b>
         </div>
@@ -222,6 +233,8 @@ let lastTrade = null;
 
 let nextBuyZone = null;
 let nextSellZone = null;
+let showNextBuy = true;
+let showNextSell = true;
 
 let tradeHistory = []; 
 let tradeJournal = []; 
@@ -248,14 +261,11 @@ function loadHistory() {
     tradeJournal = JSON.parse(localStorage.getItem(keys.journal)) || []; 
     lastTradedOBTime = parseFloat(localStorage.getItem(keys.lastOB)) || 0;
     
-    // Nettoyage des doublons potentiels
+    // Nettoyage des doublons
     const uniqueJournal = [];
     const seen = new Set();
     tradeJournal.forEach(t => {
-        if (!seen.has(t.endTime)) {
-            seen.add(t.endTime);
-            uniqueJournal.push(t);
-        }
+        if (!seen.has(t.id)) { seen.add(t.id); uniqueJournal.push(t); }
     });
     tradeJournal = uniqueJournal.slice(-10);
     tradeHistory = tradeHistory.slice(-10);
@@ -269,6 +279,20 @@ function tfToSeconds(tf) {
 }
 function getDecimals(symbol) {
   if(symbol.includes('JPY')) return 3; if(symbol === 'XAUUSD') return 2; if(symbol === 'BTCUSD' || symbol === 'US500' || symbol === 'US100') return 1; return 5;
+}
+
+/* =========================================
+   TOGGLE PROCHAINES ZONES
+   ========================================= */
+window.toggleNextZone = function(type) {
+    if (type === 'buy') {
+        showNextBuy = !showNextBuy;
+        $('nz-buy').classList.toggle('hidden-zone', !showNextBuy);
+    } else {
+        showNextSell = !showNextSell;
+        $('nz-sell').classList.toggle('hidden-zone', !showNextSell);
+    }
+    drawTradeZones();
 }
 
 /* =========================================
@@ -322,7 +346,7 @@ function drawTradeZones() {
     }
 
     if (tradeState !== 'ACTIVE') {
-        if (nextBuyZone) {
+        if (showNextBuy && nextBuyZone) {
             const yTop = candleSeries.priceToCoordinate(nextBuyZone.top);
             const yBot = candleSeries.priceToCoordinate(nextBuyZone.bottom);
             if (yTop !== null && yBot !== null) {
@@ -338,7 +362,7 @@ function drawTradeZones() {
                 ctx.fillText('Prochaine zone ACHAT', 10, yTop - 5);
             }
         }
-        if (nextSellZone) {
+        if (showNextSell && nextSellZone) {
             const yTop = candleSeries.priceToCoordinate(nextSellZone.top);
             const yBot = candleSeries.priceToCoordinate(nextSellZone.bottom);
             if (yTop !== null && yBot !== null) {
@@ -535,7 +559,6 @@ function analyzeSMC() {
         if (!c) continue;
         const cSize = Math.abs(c.close - c.open);
         
-        // Chercher une bougie significative (taille > 0.5 ATR)
         if (cSize > atr * 0.5) {
             if (c.close < c.open && c.high < currentPrice && !nextBuyZone) {
                 nextBuyZone = { top: c.high, bottom: c.low };
@@ -629,7 +652,6 @@ function analyzeSMC() {
                 const bodySize = Math.abs(c.close - c.open);
                 const totalWick = c.high - c.low;
                 
-                // Filtre Volume (Score + Couleur Synchronisés)
                 if (currentSymbol === 'BTCUSD' || currentSymbol === 'US500' || currentSymbol === 'US100') {
                     if (c.volume > volSMA * 1.5) { confluenceScore++; confluenceDetails.volume = true; }
                 } else {
@@ -663,7 +685,6 @@ function analyzeSMC() {
         if (validOB) {
             const tempTP = isCurrentUp ? validOB.entry + (Math.abs(validOB.entry - validOB.sl) * 2) : validOB.entry - (Math.abs(validOB.entry - validOB.sl) * 2);
             
-            // VÉRIFICATION ANTI-DOUBLON : Le prix a-t-il déjà dépassé le TP ou le SL ?
             const isMissedTrade = (isCurrentUp && currentPrice >= tempTP) || (!isCurrentUp && currentPrice <= tempTP);
             const isInvalidated = (isCurrentUp && currentPrice <= validOB.sl) || (!isCurrentUp && currentPrice >= validOB.sl);
 
@@ -705,14 +726,11 @@ function analyzeSMC() {
 function saveLastTrade(setup, result, endTime) {
     const keys = getStorageKeys();
     const tradeData = {
-        id: setup.obTime, // Identifiant unique basé sur l'heure de la bougie
+        id: setup.obTime,
         entry: setup.entry, sl: setup.sl, tp: setup.tp, type: setup.type, result: result, endTime: endTime
     };
 
-    // VÉRIFICATION FINALE ANTI-DOUBLON
-    if (tradeJournal.some(t => t.id === tradeData.id)) {
-        return; // Si ce trade est déjà dans le journal, on ne l'ajoute pas.
-    }
+    if (tradeJournal.some(t => t.id === tradeData.id)) return;
 
     lastTrade = tradeData;
     lastTradedOBTime = setup.obTime;
@@ -872,12 +890,18 @@ function renderPanel(isCurrentUp) {
   if (lockedSetup && tradeState === 'ACTIVE') {
       const isBuy = lockedSetup.type === 'buy';
       html += `
-        <div class="setup ${isBuy ? 'buy' : 'sell'}">
-          <div class="setup-title"><span>${isBuy ? '🟢 ACHAT' : '🔴 VENTE'}</span></div>
-          <div class="trade-grid">
-            <div class="cell precision"><small>Entrée</small><b>${fmt(lockedSetup.entry)}</b></div>
-            <div class="cell"><small>Stop-Loss</small><b>${fmt(lockedSetup.sl)}</b></div>
-            <div class="cell"><small>TP (R:R 2)</small><b>${fmt(lockedSetup.tp)}</b></div>
+        <div class="setup-compact ${isBuy ? 'buy' : 'sell'}">
+          <div class="sc-item">
+            <span class="sc-label">Entrée</span>
+            <span class="sc-val entry">${fmt(lockedSetup.entry)}</span>
+          </div>
+          <div class="sc-item">
+            <span class="sc-label">SL</span>
+            <span class="sc-val sl">${fmt(lockedSetup.sl)}</span>
+          </div>
+          <div class="sc-item">
+            <span class="sc-label">TP (R:R 2)</span>
+            <span class="sc-val tp">${fmt(lockedSetup.tp)}</span>
           </div>
         </div>
       `;
