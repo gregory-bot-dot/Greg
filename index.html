@@ -247,6 +247,19 @@ function loadHistory() {
     tradeHistory = JSON.parse(localStorage.getItem(keys.history)) || []; 
     tradeJournal = JSON.parse(localStorage.getItem(keys.journal)) || []; 
     lastTradedOBTime = parseFloat(localStorage.getItem(keys.lastOB)) || 0;
+    
+    // Nettoyage des doublons potentiels
+    const uniqueJournal = [];
+    const seen = new Set();
+    tradeJournal.forEach(t => {
+        if (!seen.has(t.endTime)) {
+            seen.add(t.endTime);
+            uniqueJournal.push(t);
+        }
+    });
+    tradeJournal = uniqueJournal.slice(-10);
+    tradeHistory = tradeHistory.slice(-10);
+
     renderJournal();
     $('lastTradeBox').style.display = tradeJournal.length > 0 ? 'block' : 'none';
 }
@@ -308,7 +321,6 @@ function drawTradeZones() {
         });
     }
 
-    // On ne dessine les prochaines zones QUE si on n'a pas de trade actif
     if (tradeState !== 'ACTIVE') {
         if (nextBuyZone) {
             const yTop = candleSeries.priceToCoordinate(nextBuyZone.top);
@@ -521,12 +533,16 @@ function analyzeSMC() {
     for (let i = currentData.length - 5; i >= currentData.length - 50; i--) {
         const c = currentData[i];
         if (!c) continue;
+        const cSize = Math.abs(c.close - c.open);
         
-        if (c.close < c.open && c.high < currentPrice && !nextBuyZone) {
-            nextBuyZone = { top: c.high, bottom: c.low };
-        }
-        if (c.close > c.open && c.low > currentPrice && !nextSellZone) {
-            nextSellZone = { top: c.high, bottom: c.low };
+        // Chercher une bougie significative (taille > 0.5 ATR)
+        if (cSize > atr * 0.5) {
+            if (c.close < c.open && c.high < currentPrice && !nextBuyZone) {
+                nextBuyZone = { top: c.high, bottom: c.low };
+            }
+            if (c.close > c.open && c.low > currentPrice && !nextSellZone) {
+                nextSellZone = { top: c.high, bottom: c.low };
+            }
         }
     }
     
@@ -613,10 +629,11 @@ function analyzeSMC() {
                 const bodySize = Math.abs(c.close - c.open);
                 const totalWick = c.high - c.low;
                 
+                // Filtre Volume (Score + Couleur Synchronisés)
                 if (currentSymbol === 'BTCUSD' || currentSymbol === 'US500' || currentSymbol === 'US100') {
                     if (c.volume > volSMA * 1.5) { confluenceScore++; confluenceDetails.volume = true; }
                 } else {
-                    if (c.volume === 0) { confluenceDetails.volume = true; }
+                    if (c.volume === 0) { confluenceScore++; confluenceDetails.volume = true; }
                     else if (c.volume > volSMA * 1.5) { confluenceScore++; confluenceDetails.volume = true; }
                 }
                 
@@ -644,7 +661,6 @@ function analyzeSMC() {
         $('conf-4').className = 'conf-item ' + (confluenceDetails.session ? 'yes' : 'no');
 
         if (validOB) {
-            // Calcul du TP
             const tempTP = isCurrentUp ? validOB.entry + (Math.abs(validOB.entry - validOB.sl) * 2) : validOB.entry - (Math.abs(validOB.entry - validOB.sl) * 2);
             
             // VÉRIFICATION ANTI-DOUBLON : Le prix a-t-il déjà dépassé le TP ou le SL ?
@@ -652,7 +668,6 @@ function analyzeSMC() {
             const isInvalidated = (isCurrentUp && currentPrice <= validOB.sl) || (!isCurrentUp && currentPrice >= validOB.sl);
 
             if (isMissedTrade || isInvalidated) {
-                // Si le trade est déjà "terminé", on l'ignore et on l'enregistre comme déjà traité
                 lastTradedOBTime = validOB.time;
                 localStorage.setItem(getStorageKeys().lastOB, lastTradedOBTime);
                 validOB = null;
@@ -690,17 +705,20 @@ function analyzeSMC() {
 function saveLastTrade(setup, result, endTime) {
     const keys = getStorageKeys();
     const tradeData = {
+        id: setup.obTime, // Identifiant unique basé sur l'heure de la bougie
         entry: setup.entry, sl: setup.sl, tp: setup.tp, type: setup.type, result: result, endTime: endTime
     };
+
+    // VÉRIFICATION FINALE ANTI-DOUBLON
+    if (tradeJournal.some(t => t.id === tradeData.id)) {
+        return; // Si ce trade est déjà dans le journal, on ne l'ajoute pas.
+    }
 
     lastTrade = tradeData;
     lastTradedOBTime = setup.obTime;
     localStorage.setItem(keys.lastOB, lastTradedOBTime);
 
-    tradeHistory.push({
-        startTime: setup.startTime, 
-        entry: setup.entry, sl: setup.sl, tp: setup.tp, type: setup.type, result: result
-    });
+    tradeHistory.push(tradeData);
     if (tradeHistory.length > 10) tradeHistory.shift();
     localStorage.setItem(keys.history, JSON.stringify(tradeHistory));
 
