@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ChartVision Pro — SMC</title>
+<title>ChartVision Pro — SMC Ultime</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root{
     --bg:#0b0e14;--panel:#131722;--panel2:#1a1f2c;--line:#2f3a52;
-    --txt:#e8eef7;--muted:#8b94a8;--acc:#2962ff;--up:#26a69a;--down:#ef5350;--warn:#ff9800;
+    --txt:#e8eef7;--muted:#8b94a8;--acc:#2962ff;--up:#26a69a;--down:#ef5350;--warn:#ff9800;--fvg:#ab47bc;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
   html,body{height:100%; margin:0; padding:0; overflow:hidden;}
@@ -37,9 +37,10 @@
   @media(max-width:900px){ .panel{width:100%; height:65vh; border-left:none; border-top:1px solid var(--line);} }
   
   .mtf-row { display: flex; gap: 6px; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.2); }
-  .mtf-badge { flex: 1; text-align: center; padding: 6px; border-radius: 6px; font-size: 11px; font-weight: bold; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); }
+  .mtf-badge { flex: 1; text-align: center; padding: 6px; border-radius: 6px; font-size: 11px; font-weight: bold; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); display:flex; flex-direction:column; justify-content:center; align-items:center;}
   .mtf-badge.up { border-color: var(--up); color: var(--up); background: rgba(38,166,154,0.1); }
   .mtf-badge.down { border-color: var(--down); color: var(--down); background: rgba(239,83,80,0.1); }
+  .mtf-sub { font-size: 9px; opacity: 0.8; margin-top: 2px;}
 
   #tradeStatus { padding: 12px 15px; font-weight: bold; font-size: 13px; text-align: center; border-bottom: 1px solid var(--line); transition: 0.3s; }
   .status-wait { background: rgba(255,152,0,0.15); color: var(--warn); }
@@ -88,30 +89,25 @@
   .sc-val.sl { color: var(--down); }
   .sc-val.tp { color: var(--up); }
 
+  .ob-health { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; display:inline-block; margin-bottom: 5px;}
+  .ob-virgin { background: rgba(38,166,154,0.2); color: var(--up); }
+  .ob-tested { background: rgba(255,152,0,0.2); color: var(--warn); }
+  .ob-weak { background: rgba(239,83,80,0.2); color: var(--down); }
+
   .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:13px; }
 
-  /* PROCHAINE ZONE CLIQUABLE */
   #nextZoneBox { padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(156,39,176,0.05); display: none; }
   .nz-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; }
   .nz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  
-  .nz-cell { 
-    background: var(--panel2); padding: 8px; border-radius: 4px; border: 1px solid var(--line); 
-    text-align: center; cursor: pointer; transition: 0.2s; user-select: none;
-  }
+  .nz-cell { background: var(--panel2); padding: 8px; border-radius: 4px; border: 1px solid var(--line); text-align: center; cursor: pointer; transition: 0.2s; user-select: none; }
   .nz-cell:active { transform: scale(0.96); }
   .nz-cell.hidden-zone { opacity: 0.3; filter: grayscale(1); border-style: dashed; }
   .nz-cell.hidden-zone b { text-decoration: line-through; }
-
   .nz-cell small { display: block; color: var(--muted); font-size: 10px; margin-bottom: 4px; }
   .nz-cell b { font-family: monospace; font-size: 13px; color: #fff; }
 
   #journalContent { padding: 10px 15px; display: flex; flex-direction: column; gap: 6px; background: var(--panel); }
-  .journal-item {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 8px 10px; background: var(--panel2); border-radius: 6px;
-    border-left: 3px solid var(--muted); font-size: 11px;
-  }
+  .journal-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--panel2); border-radius: 6px; border-left: 3px solid var(--muted); font-size: 11px; }
   .journal-item.win { border-left-color: var(--up); background: rgba(38,166,154,0.05); }
   .journal-item.loss { border-left-color: var(--down); background: rgba(239,83,80,0.05); }
   .journal-item .j-type { font-weight: bold; }
@@ -151,9 +147,15 @@
   
   <div class="panel">
     <div class="mtf-row">
-      <div class="mtf-badge" id="badge-current">...</div>
-      <div class="mtf-badge" id="badge-htf1">...</div>
-      <div class="mtf-badge" id="badge-htf2">...</div>
+      <div class="mtf-badge" id="badge-current">
+        <span>...</span>
+      </div>
+      <div class="mtf-badge" id="badge-htf1">
+        <span>...</span>
+      </div>
+      <div class="mtf-badge" id="badge-htf2">
+        <span>...</span>
+      </div>
     </div>
 
     <div id="tradeStatus" class="status-wait">Calcul du statut...</div>
@@ -222,7 +224,7 @@ let currentPrice = 0;
 let updateInterval = null;
 let htfInterval = null;
 
-let trends = { current: 'neutral', htf1: 'neutral', htf2: 'neutral' };
+let trends = { current: { trend: 'neutral', bos: 'NEUTRAL' }, htf1: { trend: 'neutral', bos: 'NEUTRAL' }, htf2: { trend: 'neutral', bos: 'NEUTRAL' } };
 let currentHtf1 = '15m'; let currentHtf2 = '4h';
 
 let lockedSetup = null;
@@ -234,6 +236,7 @@ let nextBuyZone = null;
 let nextSellZone = null;
 let showNextBuy = true;
 let showNextSell = true;
+let fvgs = []; // Nouveaux FVG
 
 let tradeHistory = []; 
 let tradeJournal = []; 
@@ -293,7 +296,6 @@ function toggleNextZone(type) {
     drawTradeZones();
 }
 
-// Ajout des écouteurs d'événements après chargement de la page
 setTimeout(() => {
     $('nz-buy').addEventListener('click', () => toggleNextZone('buy'));
     $('nz-sell').addEventListener('click', () => toggleNextZone('sell'));
@@ -309,6 +311,21 @@ function drawTradeZones() {
         overlayCanvas.height = rect.height;
     }
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+    // 1. FVG (Nouveauté)
+    fvgs.forEach(fvg => {
+        const yTop = candleSeries.priceToCoordinate(fvg.top);
+        const yBot = candleSeries.priceToCoordinate(fvg.bottom);
+        if (yTop !== null && yBot !== null) {
+            ctx.fillStyle = 'rgba(156, 39, 176, 0.15)'; // Violet
+            ctx.setLineDash([2, 2]);
+            ctx.strokeStyle = 'rgba(156, 39, 176, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.fillRect(0, yTop, overlayCanvas.width, yBot - yTop);
+            ctx.strokeRect(0, yTop, overlayCanvas.width, yBot - yTop);
+            ctx.setLineDash([]);
+        }
+    });
 
     if (showHistoryLines) {
         tradeHistory.forEach(trade => {
@@ -350,15 +367,14 @@ function drawTradeZones() {
     }
 
     if (tradeState !== 'ACTIVE') {
-        // On augmente l'opacité pour que ça soit bien visible
         if (showNextBuy && nextBuyZone) {
             const yTop = candleSeries.priceToCoordinate(nextBuyZone.top);
             const yBot = candleSeries.priceToCoordinate(nextBuyZone.bottom);
             if (yTop !== null && yBot !== null) {
-                ctx.fillStyle = 'rgba(38, 166, 154, 0.15)'; // Plus visible
+                ctx.fillStyle = 'rgba(38, 166, 154, 0.1)'; 
                 ctx.setLineDash([5, 5]);
-                ctx.strokeStyle = 'rgba(38, 166, 154, 0.8)'; // Plus visible
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = 'rgba(38, 166, 154, 0.6)'; 
+                ctx.lineWidth = 1;
                 ctx.fillRect(0, yTop, overlayCanvas.width, yBot - yTop);
                 ctx.strokeRect(0, yTop, overlayCanvas.width, yBot - yTop);
                 ctx.setLineDash([]);
@@ -371,10 +387,10 @@ function drawTradeZones() {
             const yTop = candleSeries.priceToCoordinate(nextSellZone.top);
             const yBot = candleSeries.priceToCoordinate(nextSellZone.bottom);
             if (yTop !== null && yBot !== null) {
-                ctx.fillStyle = 'rgba(239, 83, 80, 0.15)'; // Plus visible
+                ctx.fillStyle = 'rgba(239, 83, 80, 0.1)'; 
                 ctx.setLineDash([5, 5]);
-                ctx.strokeStyle = 'rgba(239, 83, 80, 0.8)'; // Plus visible
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = 'rgba(239, 83, 80, 0.6)';
+                ctx.lineWidth = 1;
                 ctx.fillRect(0, yTop, overlayCanvas.width, yBot - yTop);
                 ctx.strokeRect(0, yTop, overlayCanvas.width, yBot - yTop);
                 ctx.setLineDash([]);
@@ -466,8 +482,9 @@ function updateHTFTargets() {
     else if (currentTF === '1h') { currentHtf1 = '4h'; currentHtf2 = '1d'; }
     else if (currentTF === '4h') { currentHtf1 = '1d'; currentHtf2 = null; }
     else if (currentTF === '1d') { currentHtf1 = null; currentHtf2 = null; }
-    $('badge-htf1').textContent = currentHtf1 || '--';
-    $('badge-htf2').textContent = currentHtf2 || '--';
+    
+    $('badge-htf1').innerHTML = `<span>...</span>`;
+    $('badge-htf2').innerHTML = `<span>...</span>`;
 }
 
 async function fetchUrl(targetUrl) {
@@ -490,21 +507,50 @@ function calculateEMA(data, period) {
   return ema;
 }
 
+// Nouveau : Détection de structure (BOS)
+function analyzeStructure(data) {
+    if (!data || data.length < 20) return { trend: 'neutral', bos: 'NEUTRAL' };
+    const lastClose = parseFloat(data[data.length-1].close);
+    
+    // Trouver le dernier sommet et creux (pivots simples)
+    let lastHigh = -1, lastLow = Infinity;
+    for (let i = data.length - 15; i < data.length - 2; i++) {
+        if (data[i].high > data[i-1].high && data[i].high > data[i+1].high) lastHigh = Math.max(lastHigh, data[i].high);
+        if (data[i].low < data[i-1].low && data[i].low < data[i+1].low) lastLow = Math.min(lastLow, data[i].low);
+    }
+    
+    const ema = calculateEMA(data, 50);
+    const trend = lastClose > ema ? 'up' : 'down';
+    
+    let bos = 'NEUTRAL';
+    if (lastClose > lastHigh) bos = 'BOS+';
+    else if (lastClose < lastLow) bos = 'BOS-';
+    
+    return { trend, bos };
+}
+
 async function fetchHTF() {
     if (currentHtf1) {
         const res = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentHtf1}&limit=100&t=${Date.now()}`);
-        if (res && res.bars) { trends.htf1 = calculateEMA(res.bars, 50) < parseFloat(res.bars[res.bars.length-1].close) ? 'up' : 'down'; updateBadge('badge-htf1', currentHtf1, trends.htf1); }
+        if (res && res.bars) { 
+            trends.htf1 = analyzeStructure(res.bars); 
+            updateBadge('badge-htf1', currentHtf1, trends.htf1.trend, trends.htf1.bos); 
+        }
     }
     if (currentHtf2) {
         const res = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentHtf2}&limit=100&t=${Date.now()}`);
-        if (res && res.bars) { trends.htf2 = calculateEMA(res.bars, 50) < parseFloat(res.bars[res.bars.length-1].close) ? 'up' : 'down'; updateBadge('badge-htf2', currentHtf2, trends.htf2); }
+        if (res && res.bars) { 
+            trends.htf2 = analyzeStructure(res.bars); 
+            updateBadge('badge-htf2', currentHtf2, trends.htf2.trend, trends.htf2.bos); 
+        }
     }
 }
 
-function updateBadge(id, label, trend) {
+function updateBadge(id, label, trend, bos) {
     const el = $(id);
     el.className = 'mtf-badge ' + trend;
-    el.textContent = `${label} : ${trend === 'up' ? 'HAUSSE' : 'BAISSE'}`;
+    let bosText = bos === 'BOS+' ? '📈 BOS+' : (bos === 'BOS-' ? '📉 BOS-' : '');
+    el.innerHTML = `<span>${label} : ${trend === 'up' ? 'HAUSSE' : 'BAISSE'}</span><span class="mtf-sub">${bosText}</span>`;
 }
 
 async function fetchMainData() {
@@ -525,8 +571,8 @@ async function fetchMainData() {
   
   if (currentData.length > 0) { 
       currentPrice = currentData[currentData.length - 1].close; 
-      trends.current = calculateEMA(currentData, 50) < currentPrice ? 'up' : 'down';
-      updateBadge('badge-current', currentTF, trends.current);
+      trends.current = analyzeStructure(currentData);
+      updateBadge('badge-current', currentTF, trends.current.trend, trends.current.bos);
       analyzeSMC(); 
   }
 }
@@ -537,7 +583,7 @@ async function fetchMainData() {
 function analyzeSMC() {
   if (currentData.length < 50) return;
   try {
-    const isCurrentUp = trends.current === 'up';
+    const isCurrentUp = trends.current.trend === 'up';
     const atr = (function() {
         let trSum = 0;
         for (let i = currentData.length - 14; i < currentData.length; i++) {
@@ -555,6 +601,24 @@ function analyzeSMC() {
     })();
     
     const currentTime = currentData[currentData.length - 1].time;
+
+    // --- RECHERCHE DES FVG (Nouveauté) ---
+    fvgs = [];
+    for (let i = currentData.length - 15; i < currentData.length - 2; i++) {
+        // FVG Haussier
+        if (currentData[i+2].low > currentData[i].high) {
+            fvgs.push({ type: 'bull', top: currentData[i+2].low, bottom: currentData[i].high });
+        }
+        // FVG Baissier
+        if (currentData[i+2].high < currentData[i].low) {
+            fvgs.push({ type: 'bear', top: currentData[i].low, bottom: currentData[i+2].high });
+        }
+    }
+    // On ne garde que les FVG récents qui n'ont pas été comblés
+    fvgs = fvgs.filter(f => {
+        if (f.type === 'bull') return currentPrice > f.top; // Prix au dessus
+        else return currentPrice < f.bottom; // Prix en dessous
+    }).slice(-3); 
 
     // --- RECHERCHE DE LA PROCHAINE ZONE (Future OB) ---
     nextBuyZone = null;
@@ -601,7 +665,7 @@ function analyzeSMC() {
 
     // --- GESTION DU TRADE ACTIF ---
     if (tradeState === 'ACTIVE' && lockedSetup) {
-        if (lockedSetup.direction !== trends.current) {
+        if (lockedSetup.direction !== trends.current.trend) {
             lockedSetup = null; tradeState = 'IDLE';
         } else {
             if ((lockedSetup.type === 'buy' && currentPrice >= lockedSetup.tp) || (lockedSetup.type === 'sell' && currentPrice <= lockedSetup.tp)) {
@@ -653,6 +717,12 @@ function analyzeSMC() {
             }
 
             if (isCHoCH) {
+                // --- NOUVEAU : ANALYSE DE LA SANTÉ DE L'OB (Mitigation) ---
+                let touches = 0;
+                for(let j = i+1; j < currentData.length; j++) {
+                    if (currentData[j].low <= obTop && currentData[j].high >= obBottom) touches++;
+                }
+
                 confluenceScore = 1; confluenceDetails.choch = true;
                 const bodySize = Math.abs(c.close - c.open);
                 const totalWick = c.high - c.low;
@@ -670,7 +740,7 @@ function analyzeSMC() {
                 if (hour >= 7 && hour <= 16) { confluenceScore++; confluenceDetails.session = true; }
 
                 if (confluenceScore >= 1 && direction === (isCurrentUp ? "buy" : "sell")) {
-                    validOB = { top: obTop, bottom: obBottom, entry: entry, sl: sl, time: c.time };
+                    validOB = { top: obTop, bottom: obBottom, entry: entry, sl: sl, time: c.time, touches: touches };
                     waitReason = confluenceScore === 1 ? "Setup validé (Risque élevé)" : "Setup valide";
                     break; 
                 } else {
@@ -701,10 +771,11 @@ function analyzeSMC() {
             } else {
                 lockedSetup = {
                     type: isCurrentUp ? 'buy' : 'sell',
-                    direction: trends.current,
+                    direction: trends.current.trend,
                     entry: validOB.entry, sl: validOB.sl, tp: tempTP,
                     startTime: validOB.time,
                     obTime: validOB.time,
+                    touches: validOB.touches, // Nouveau : on garde l'info
                     entryTouched: false 
                 };
                 tradeState = 'ACTIVE';
@@ -826,8 +897,8 @@ function updateTradeStatus(price, isCurrentUp, timeLeftStr) {
     }
 
     if (lockedSetup.entryTouched) {
-        let isConfluent = (isBuy && trends.htf1 === 'up' && trends.htf2 === 'up') || (!isBuy && trends.htf1 === 'down' && trends.htf2 === 'down');
-        let conflict = (isBuy && (trends.htf1 === 'down' || trends.htf2 === 'down')) || (!isBuy && (trends.htf1 === 'up' || trends.htf2 === 'up'));
+        let isConfluent = (isBuy && trends.htf1.trend === 'up' && trends.htf2.trend === 'up') || (!isBuy && trends.htf1.trend === 'down' && trends.htf2.trend === 'down');
+        let conflict = (isBuy && (trends.htf1.trend === 'down' || trends.htf2.trend === 'down')) || (!isBuy && (trends.htf1.trend === 'up' || trends.htf2.trend === 'up'));
         
         if (conflict && Math.abs(price - setup.entry) <= tolerance) { 
             statusDiv.textContent = `⚠️ Entrée atteinte, CONFLIT MTF`; statusDiv.classList.add('status-wait'); 
@@ -894,8 +965,18 @@ function renderPanel(isCurrentUp) {
 
   if (lockedSetup && tradeState === 'ACTIVE') {
       const isBuy = lockedSetup.type === 'buy';
+      
+      // Nouveau : Affichage de la santé de l'OB
+      let obHealthHtml = '';
+      if (lockedSetup.touches === 0) obHealthHtml = '<span class="ob-health ob-virgin">🛡️ OB Vierge</span>';
+      else if (lockedSetup.touches === 1) obHealthHtml = '<span class="ob-health ob-tested">⚠️ OB Testé 1x</span>';
+      else obHealthHtml = '<span class="ob-health ob-weak">🚨 OB Faible</span>';
+
       html += `
         <div class="setup-compact ${isBuy ? 'buy' : 'sell'}">
+          <div style="width:100%; text-align:center; margin-bottom:5px;">
+            ${obHealthHtml}
+          </div>
           <div class="sc-item">
             <span class="sc-label">Entrée</span>
             <span class="sc-val entry">${fmt(lockedSetup.entry)}</span>
