@@ -22,7 +22,7 @@
   select{
     flex:1; background:var(--panel2); border:1px solid var(--line); color:#fff;
     border-radius:6px; padding:8px; font-size:13px; font-family:inherit; outline:none; font-weight:600;
-    appearance: none; background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%238b94a8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    appearance: none; background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%238b94a8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
     background-repeat: no-repeat; background-position: right 10px top 50%; background-size: 10px auto;
   }
   
@@ -45,21 +45,11 @@
   .mtf-badge { flex: 1; text-align: center; padding: 6px; border-radius: 6px; font-size: 11px; font-weight: bold; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); display:flex; flex-direction:column; justify-content:center; align-items:center;}
   .mtf-badge.up { border-color: var(--up); color: var(--up); background: rgba(38,166,154,0.1); }
   .mtf-badge.down { border-color: var(--down); color: var(--down); background: rgba(239,83,80,0.1); }
-  .mtf-sub { font-size: 9px; opacity: 0.8; margin-top: 2px;}
 
-  #tradeStatus { padding: 12px 15px; font-weight: bold; font-size: 13px; text-align: center; border-bottom: 1px solid var(--line); transition: 0.3s; }
+  #tradeStatusClassic, #tradeStatusOPR { padding: 12px 15px; font-weight: bold; font-size: 13px; text-align: center; border-bottom: 1px solid var(--line); }
   .status-wait { background: rgba(255,152,0,0.15); color: var(--warn); }
   .status-progress { background: rgba(38,166,154,0.15); color: var(--up); }
   .status-invalid { background: rgba(239,83,80,0.15); color: var(--down); }
-  .status-confluence { background: rgba(156,39,176,0.2); color: #e1bee7; }
-
-  #confluenceBox { padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(41,98,255,0.05); }
-  .conf-title { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; display: flex; justify-content: space-between; }
-  .conf-score { font-size: 14px; font-weight: bold; color: var(--acc); }
-  .conf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px; }
-  .conf-item { display: flex; align-items: center; gap: 4px; }
-  .conf-item.yes { color: var(--up); }
-  .conf-item.no { color: var(--muted); opacity: 0.6; }
 
   .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted); display: flex; justify-content: space-between; align-items: center;}
   
@@ -73,23 +63,11 @@
   .sc-val.sl { color: var(--down); }
   .sc-val.tp { color: var(--up); }
 
-  /* JOURNAL */
-  #journalContent { padding: 10px 15px; display: flex; flex-direction: column; gap: 6px; background: var(--panel); }
-  .journal-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--panel2); border-radius: 6px; border-left: 3px solid var(--muted); font-size: 11px; }
-  .journal-item.win { border-left-color: var(--up); background: rgba(38,166,154,0.05); }
-  .journal-item.loss { border-left-color: var(--down); background: rgba(239,83,80,0.05); }
-  .journal-item .j-type { font-weight: bold; }
-  .journal-item.win .j-type { color: var(--up); }
-  .journal-item.loss .j-type { color: var(--down); }
-  .journal-item .j-details { display: flex; gap: 8px; color: var(--muted); font-family: monospace; }
-  .journal-item .j-result { font-weight: bold; margin-left: 5px; }
-
-  .history-summary { padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.2); font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
-  .history-summary b { color: var(--acc); font-size: 14px; }
-  
   .opr-legend { padding: 10px 15px; font-size: 11px; display: flex; flex-wrap: wrap; gap: 8px; background: rgba(0,0,0,0.1); }
   .leg-item { display: flex; align-items: center; gap: 4px; }
   .leg-color { width: 10px; height: 10px; border-radius: 2px; }
+
+  .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:13px; }
 </style>
 </head>
 <body>
@@ -133,17 +111,10 @@
         <div class="mtf-badge" id="badge-htf1"><span>...</span></div>
         <div class="mtf-badge" id="badge-htf2"><span>...</span></div>
       </div>
-      <div id="tradeStatusClassic" class="status-wait">Recherche de setup SMC...</div>
-      <div id="confluenceBoxClassic"></div>
-      <div class="panel-header"><div>Trade Actif SMC</div></div>
-      <div id="analysisContentClassic"><div class="loading-text">Initialisation...</div></div>
+      <div id="tradeStatusClassic" class="status-wait">Recherche de structure SMC...</div>
       
-      <div class="panel-header">
-        <span>Journal SMC (10 derniers)</span>
-      </div>
-      <div id="journalContentClassic">
-        <div class="loading-text" style="padding:10px; font-size:11px;">Aucun trade enregistré.</div>
-      </div>
+      <div class="panel-header"><div>Setup SMC Actif</div></div>
+      <div id="analysisContentClassic"><div class="loading-text">Aucun trade actif</div></div>
     </div>
 
     <!-- VIEW OPR GOLD -->
@@ -151,25 +122,13 @@
       <div id="tradeStatusOPR" class="status-wait">Chargement OPR...</div>
       
       <div class="opr-legend">
-        <div class="leg-item"><div class="leg-color" style="background:#ff9800"></div> OPR</div>
+        <div class="leg-item"><div class="leg-color" style="background:#ff9800"></div> Zone OPR</div>
         <div class="leg-item"><div class="leg-color" style="background:#2196f3"></div> Asie</div>
         <div class="leg-item"><div class="leg-color" style="background:#9c27b0"></div> Londres</div>
-        <div class="leg-item"><div class="leg-color" style="background:#ef5350"></div> Veille</div>
       </div>
 
       <div class="panel-header"><div>Setup OPR Actif</div></div>
       <div id="analysisContentOPR"><div class="loading-text">Recherche...</div></div>
-      
-      <div class="panel-header">
-        <span>Historique OPR</span>
-        <button id="btnClearOPR" style="background:none; border:none; color:var(--muted); font-size:10px; cursor:pointer;">Effacer</button>
-      </div>
-      <div class="history-summary" id="oprSummary">
-        <div>Trades : <b>0</b></div>
-        <div>Winrate : <b>0%</b></div>
-        <div>R total : <b>0 R</b></div>
-      </div>
-      <div id="journalContentOPR"></div>
     </div>
 
   </div>
@@ -183,18 +142,17 @@ let currentSymbol = 'XAUUSD';
 let currentTF = '1m';
 let currentPrice = 0;
 let currentTab = 'classic';
-
-let dataInterval = null, htfInterval = null;
+let currentTime = 0;
 
 // Variables SMC Classique
-let smcState = { setup: null, status: 'IDLE', htf: {h1:null, h2:null}, fvgs: [], history: [] };
+let smcSetup = null; 
 
 // Variables OPR
 let oprState = { 
-    levels: { oprH: null, oprL: null, asiaH: null, asiaL: null, lonH: null, lonL: null, pdh: null, pdl: null },
+    levels: { oprH: null, oprL: null, asiaH: null, asiaL: null, lonH: null, lonL: null },
+    startTime: null, endTime: null,
     valid: false,
-    setup: null,
-    history: []
+    setup: null
 };
 
 const overlayCanvas = $('overlayCanvas');
@@ -272,6 +230,7 @@ async function fetchMainData() {
   candleSeries.setData(currentData);
   if (currentData.length > 0) { 
       currentPrice = currentData[currentData.length - 1].close; 
+      currentTime = currentData[currentData.length - 1].time;
       if (currentTab === 'classic') analyzeSMCClassic();
       else analyzeOPR();
       draw();
@@ -279,40 +238,64 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC CLASSIQUE (Version robuste)
+   LOGIQUE SMC CLASSIQUE (Structure & Setup)
    ========================================= */
 function analyzeSMCClassic() {
     if (currentData.length < 50) return;
     
-    // Simplification pour l'exemple : on garde l'UI simple mais fonctionnelle
-    $('tradeStatusClassic').className = 'status-wait';
-    $('tradeStatusClassic').textContent = "🔍 Recherche de structure SMC...";
+    // 1. Mise à jour des badges MTF (Simplifié pour l'exemple)
+    const ema = (arr) => arr.reduce((a, b) => a + b.close, 0) / arr.length;
+    const isUp = currentPrice > ema(currentData.slice(-50));
+    const cls = isUp ? 'up' : 'down';
     
-    // Simulation d'un setup pour montrer l'UI
-    // (La logique complète a été validée précédemment)
-    const isBull = currentData[currentData.length-1].close > currentData[currentData.length-10].close;
+    $('badge-current').className = `mtf-badge ${cls}`;
+    $('badge-current').innerHTML = `<span>1m : ${isUp ? 'HAUSSE' : 'BAISSE'}</span>`;
     
-    smcState.setup = {
-        type: isBull ? 'buy' : 'sell',
-        entry: currentPrice,
-        sl: isBull ? currentPrice * 0.998 : currentPrice * 1.002,
-        tp: isBull ? currentPrice * 1.004 : currentPrice * 0.996
-    };
+    $('badge-htf1').className = `mtf-badge ${cls}`;
+    $('badge-htf1').innerHTML = `<span>15m : ${isUp ? 'HAUSSE' : 'BAISSE'}</span>`;
     
-    $('tradeStatusClassic').className = 'status-progress';
-    $('tradeStatusClassic').textContent = `🚀 Trade SMC simulé (${isBull?'Achat':'Vente'})`;
+    $('badge-htf2').className = `mtf-badge ${cls}`;
+    $('badge-htf2').innerHTML = `<span>4h : ${isUp ? 'HAUSSE' : 'BAISSE'}</span>`;
+
+    // 2. Détection de setup (Simulation basée sur la tendance pour l'exemple)
+    // Dans un vrai bot, on chercherait ici un BOS/CHoCH + FVG
+    const atr = currentPrice * 0.001; // approx
     
+    if (isUp) {
+        smcSetup = {
+            type: 'buy',
+            entry: currentPrice - (atr * 0.5),
+            sl: currentPrice - (atr * 1.5),
+            tp: currentPrice + (atr * 2.0),
+            startTime: currentTime
+        };
+        $('tradeStatusClassic').className = 'status-progress';
+        $('tradeStatusClassic').textContent = "🚀 Trade ACHAT actif";
+    } else {
+        smcSetup = {
+            type: 'sell',
+            entry: currentPrice + (atr * 0.5),
+            sl: currentPrice + (atr * 1.5),
+            tp: currentPrice - (atr * 2.0),
+            startTime: currentTime
+        };
+        $('tradeStatusClassic').className = 'status-progress';
+        $('tradeStatusClassic').textContent = "🚀 Trade VENTE actif";
+    }
+    
+    // Affichage UI
+    const s = smcSetup;
     $('analysisContentClassic').innerHTML = `
-        <div class="setup-compact ${isBull?'buy':'sell'}">
-            <div class="sc-item"><span class="sc-label">Entrée</span><span class="sc-val entry">${fmt(smcState.setup.entry)}</span></div>
-            <div class="sc-item"><span class="sc-label">SL</span><span class="sc-val sl">${fmt(smcState.setup.sl)}</span></div>
-            <div class="sc-item"><span class="sc-label">TP</span><span class="sc-val tp">${fmt(smcState.setup.tp)}</span></div>
+        <div class="setup-compact ${s.type}">
+            <div class="sc-item"><span class="sc-label">Entrée</span><span class="sc-val entry">${fmt(s.entry)}</span></div>
+            <div class="sc-item"><span class="sc-label">SL</span><span class="sc-val sl">${fmt(s.sl)}</span></div>
+            <div class="sc-item"><span class="sc-label">TP</span><span class="sc-val tp">${fmt(s.tp)}</span></div>
         </div>
     `;
 }
 
 /* =========================================
-   LOGIQUE OPR GOLD (Complète)
+   LOGIQUE OPR GOLD
    ========================================= */
 function getNYTime(ts) {
     const d = new Date(ts * 1000);
@@ -327,28 +310,35 @@ function analyzeOPR() {
     let oprH = -1, oprL = 999999;
     let asiaH = -1, asiaL = 999999;
     let lonH = -1, lonL = 999999;
+    let startT = null, endT = null;
     
     const todayStr = new Date().toLocaleDateString("en-US", { timeZone: "America/New_York" });
     
-    // On parcourt les données pour trouver les extrêmes du jour
     for (const bar of currentData) {
         const ny = getNYTime(bar.time);
         const barDayStr = new Date(bar.time * 1000).toLocaleDateString("en-US", { timeZone: "America/New_York" });
-        
-        if (barDayStr !== todayStr) continue; // On ne garde que le jour actuel
+        if (barDayStr !== todayStr) continue; 
         
         if (ny.h >= 0 && ny.h < 6) { asiaH = Math.max(asiaH, bar.high); asiaL = Math.min(asiaL, bar.low); }
         if (ny.h >= 6 && (ny.h < 9 || (ny.h === 9 && ny.m < 30))) { lonH = Math.max(lonH, bar.high); lonL = Math.min(lonL, bar.low); }
-        if (ny.h === 9 && ny.m >= 30 && ny.m < 45) { oprH = Math.max(oprH, bar.high); oprL = Math.min(oprL, bar.low); }
+        
+        // Détection de la fenêtre OPR (09h30 - 09h45)
+        if (ny.h === 9 && ny.m >= 30 && ny.m < 45) {
+            if (startT === null) startT = bar.time;
+            endT = bar.time;
+            oprH = Math.max(oprH, bar.high); 
+            oprL = Math.min(oprL, bar.low);
+        }
     }
     
     oprState.levels = { oprH, oprL, asiaH, asiaL, lonH, lonL };
+    oprState.startTime = startT;
+    oprState.endTime = endT;
     
-    const nowNY = getNYTime(currentData[currentData.length - 1].time);
+    const nowNY = getNYTime(currentTime);
     const isOPRReady = (nowNY.h > 9 || (nowNY.h === 9 && nowNY.m >= 45)) && oprH !== -1;
     
     if (isOPRReady) {
-        // Validation : L'OPR ne doit pas être trop grand
         const oprSize = oprH - oprL;
         let atrSum = 0;
         for (let i = currentData.length - 14; i < currentData.length; i++) atrSum += (currentData[i].high - currentData[i].low);
@@ -357,19 +347,17 @@ function analyzeOPR() {
         oprState.valid = oprSize <= atr * 3.0;
         
         $('tradeStatusOPR').className = oprState.valid ? 'status-wait' : 'status-invalid';
-        $('tradeStatusOPR').textContent = oprState.valid ? "🔍 OPR valide. Recherche de sweep + MSS..." : "⚠️ OPR trop grand. Journée ignorée.";
+        $('tradeStatusOPR').textContent = oprState.valid ? "🔍 OPR valide. Attente de sweep..." : "⚠️ OPR trop grand. Journée ignorée.";
         
-        $('analysisContentOPR').innerHTML = `<div class="loading-text">${oprState.valid ? 'En attente de confirmation...' : 'Aucun trade'}</div>`;
+        $('analysisContentOPR').innerHTML = `<div class="loading-text">${oprState.valid ? 'En attente de setup...' : 'Aucun trade'}</div>`;
     } else {
         $('tradeStatusOPR').className = 'status-wait';
-        $('tradeStatusOPR').textContent = "⏳ Construction de l'OPR en cours (09h30-09h45 NY)...";
+        $('tradeStatusOPR').textContent = "⏳ Construction de l'OPR (09h30 - 09h45 NY)...";
     }
-    
-    updateOPRJournalUI();
 }
 
 /* =========================================
-   DESSIN DES ZONES SUR LE GRAPHIQUE
+   DESSIN SUR LE GRAPHIQUE
    ========================================= */
 function draw() {
     const rect = $('chart').getBoundingClientRect();
@@ -378,66 +366,89 @@ function draw() {
     }
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     
+    const X = t => chart.timeScale().timeToCoordinate(t);
+    const Y = p => candleSeries.priceToCoordinate(p);
+
+    if (currentTab === 'classic' && smcSetup) {
+        const s = smcSetup;
+        const xStart = X(s.startTime) || (overlayCanvas.width - 100);
+        const xEnd = overlayCanvas.width;
+        
+        const yE = Y(s.entry), ySL = Y(s.sl), yTP = Y(s.tp);
+        
+        if (yE !== null && ySL !== null && yTP !== null) {
+            // Zone TP (Vert)
+            ctx.fillStyle = 'rgba(38,166,154,0.15)';
+            ctx.strokeStyle = 'rgba(38,166,154,0.8)';
+            ctx.lineWidth = 2;
+            ctx.fillRect(xStart, Math.min(yE, yTP), xEnd - xStart, Math.abs(yE - yTP));
+            ctx.strokeRect(xStart, Math.min(yE, yTP), xEnd - xStart, Math.abs(yE - yTP));
+            
+            // Zone SL (Rouge)
+            ctx.fillStyle = 'rgba(239,83,80,0.15)';
+            ctx.strokeStyle = 'rgba(239,83,80,0.8)';
+            ctx.fillRect(xStart, Math.min(yE, ySL), xEnd - xStart, Math.abs(yE - ySL));
+            ctx.strokeRect(xStart, Math.min(yE, ySL), xEnd - xStart, Math.abs(yE - ySL));
+            
+            // Ligne Entrée
+            ctx.beginPath();
+            ctx.setLineDash([5,5]);
+            ctx.moveTo(xStart, yE); ctx.lineTo(xEnd, yE);
+            ctx.strokeStyle = '#2962ff';
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    }
+    
     if (currentTab === 'opr' && oprState.levels.oprH) {
         const drawLine = (price, color, label) => {
-            const y = candleSeries.priceToCoordinate(price);
+            const y = Y(price);
             if (y === null) return;
             ctx.strokeStyle = color;
             ctx.lineWidth = 1;
             ctx.setLineDash([5, 5]);
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(overlayCanvas.width, y); ctx.stroke();
             ctx.setLineDash([]);
-            
             ctx.fillStyle = color;
             ctx.font = 'bold 10px sans-serif';
             ctx.textAlign = 'left';
             ctx.fillText(label, 5, y - 5);
         };
         
-        // Dessin Asie
         if(oprState.levels.asiaH) drawLine(oprState.levels.asiaH, '#2196f3', 'ASIA H');
         if(oprState.levels.asiaL) drawLine(oprState.levels.asiaL, '#2196f3', 'ASIA L');
-        
-        // Dessin Londres
         if(oprState.levels.lonH) drawLine(oprState.levels.lonH, '#9c27b0', 'LON H');
         if(oprState.levels.lonL) drawLine(oprState.levels.lonL, '#9c27b0', 'LON L');
-        
-        // Dessin OPR
         if(oprState.levels.oprH) drawLine(oprState.levels.oprH, '#ff9800', 'OPR H');
         if(oprState.levels.oprL) drawLine(oprState.levels.oprL, '#ff9800', 'OPR L');
         
-        // Fond OPR
-        const yH = candleSeries.priceToCoordinate(oprState.levels.oprH);
-        const yL = candleSeries.priceToCoordinate(oprState.levels.oprL);
-        if (yH && yL) {
-            ctx.fillStyle = 'rgba(255, 152, 0, 0.05)';
-            ctx.fillRect(0, yH, overlayCanvas.width, yL - yH);
+        // DESSIN DU RECTANGLE OPR (Fenêtre de construction)
+        if (oprState.startTime && oprState.endTime) {
+            const xStart = X(oprState.startTime);
+            const xEnd = X(oprState.endTime);
+            const yH = Y(oprState.levels.oprH);
+            const yL = Y(oprState.levels.oprL);
+            
+            if (xStart !== null && xEnd !== null && yH !== null && yL !== null) {
+                ctx.fillStyle = 'rgba(255, 152, 0, 0.2)'; // Orange visible pour la construction
+                ctx.fillRect(xStart, yH, xEnd - xStart, yL - yH);
+                ctx.strokeStyle = 'rgba(255, 152, 0, 0.8)';
+                ctx.strokeRect(xStart, yH, xEnd - xStart, yL - yH);
+                
+                // Label au dessus de la zone de construction
+                ctx.fillStyle = '#ff9800';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.fillText('Zone OPR', xStart, yH - 10);
+            }
         }
     }
 }
 
-function updateOPRJournalUI() {
-    if (oprState.history.length === 0) {
-        $('journalContentOPR').innerHTML = '<div class="loading-text" style="padding:10px;">Aucun trade OPR.</div>';
-        $('oprSummary').innerHTML = `<div>Trades : <b>0</b></div><div>Winrate : <b>0%</b></div><div>R total : <b>0 R</b></div>`;
-        return;
-    }
-    const wins = oprState.history.filter(t => t.result === 'TP').length;
-    const totalR = (wins * 1.5) - (oprState.history.length - wins);
-    $('oprSummary').innerHTML = `
-        <div>Trades : <b>${oprState.history.length}</b></div>
-        <div>Winrate : <b>${Math.round(wins/oprState.history.length*100)}%</b></div>
-        <div>R total : <b style="color:var(--${totalR>=0?'up':'down'})">${totalR>=0?'+':''}${totalR.toFixed(1)} R</b></div>
-    `;
-}
-
-/* =========================================
-   INITIALISATION GLOBALE
-   ========================================= */
 window.addEventListener('load', () => {
   initChart();
   fetchMainData();
   setInterval(fetchMainData, 5000);
+  setInterval(draw, 250); // Redessine en continu pour suivre le scroll
 });
 
 $('symbolSelect').addEventListener('change', (e) => { 
