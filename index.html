@@ -6,71 +6,48 @@
 <title>ChartVision Pro — Multi-Stratégies</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
-  :root{
-    --bg:#0b0e14;--panel:#131722;--panel2:#1a1f2c;--line:#2f3a52;
-    --txt:#e8eef7;--muted:#8b94a8;--acc:#2962ff;--up:#26a69a;--down:#ef5350;--warn:#ff9800;
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
-  html,body{height:100%; margin:0; padding:0; overflow:hidden;}
-  body{ background:var(--bg); color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:flex; flex-direction:column; }
-  
-  header{ padding:10px 15px; background:#0e1219; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  header h1{font-size:18px;margin:0;font-weight:700; white-space:nowrap;}
-  header h1 span{color:var(--acc)}
-  
-  .controls{display:flex; gap:8px; flex:1; min-width:250px;}
-  select{
-    flex:1; background:var(--panel2); border:1px solid var(--line); color:#fff;
-    border-radius:6px; padding:8px; font-size:13px; font-family:inherit; outline:none; font-weight:600;
-    appearance: none; background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%238b94a8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
-    background-repeat: no-repeat; background-position: right 10px top 50%; background-size: 10px auto;
-  }
-  
-  .app{display:flex; flex:1; overflow:hidden; position:relative;}
-  @media(max-width:900px){ .app{flex-direction:column;} }
-  
-  .chart-container{ flex:1; position:relative; background:#05080c; min-height: 300px; }
-  #chart{ position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; }
-  #overlayCanvas { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2; pointer-events: none; }
-  
-  .panel{ width:340px; background:var(--panel); border-left:1px solid var(--line); display:flex; flex-direction:column; overflow-y:auto; }
-  @media(max-width:900px){ .panel{width:100%; height:65vh; border-left:none; border-top:1px solid var(--line);} }
-  
-  .tabs { display: flex; border-bottom: 1px solid var(--line); background: #0e1219; position: sticky; top: 0; z-index: 10; }
-  .tab { flex: 1; padding: 12px; text-align: center; font-size: 11px; font-weight: bold; color: var(--muted); cursor: pointer; text-transform: uppercase; border-bottom: 2px solid transparent; }
-  .tab.active { color: var(--acc); border-bottom-color: var(--acc); background: var(--panel); }
-
-  .mtf-row { display: flex; gap: 6px; padding: 10px 15px; border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.2); }
-  .mtf-badge { flex: 1; text-align: center; padding: 6px; border-radius: 6px; font-size: 11px; font-weight: bold; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); display:flex; flex-direction:column; justify-content:center; align-items:center;}
-  .mtf-badge.up { border-color: var(--up); color: var(--up); background: rgba(38,166,154,0.1); }
-  .mtf-badge.down { border-color: var(--down); color: var(--down); background: rgba(239,83,80,0.1); }
-
-  #tradeStatusClassic, #tradeStatusOPR { padding: 12px 15px; font-weight: bold; font-size: 13px; text-align: center; border-bottom: 1px solid var(--line); }
-  .status-wait { background: rgba(255,152,0,0.15); color: var(--warn); }
-  .status-progress { background: rgba(38,166,154,0.15); color: var(--up); }
-  .status-invalid { background: rgba(239,83,80,0.15); color: var(--down); }
-
-  .panel-header{padding:12px 15px; border-bottom:1px solid var(--line); font-weight:bold; text-transform:uppercase; font-size:11px; color:var(--muted); display: flex; justify-content: space-between; align-items: center;}
-  
-  .setup-compact { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--line); }
-  .setup-compact.buy { background: rgba(38,166,154,0.05); border-left: 4px solid var(--up); }
-  .setup-compact.sell { background: rgba(239,83,80,0.05); border-left: 4px solid var(--down); }
-  .sc-item { text-align: center; }
-  .sc-label { display: block; font-size: 9px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px;}
-  .sc-val { font-family: monospace; font-size: 14px; font-weight: bold; }
-  .sc-val.entry { color: var(--acc); }
-  .sc-val.sl { color: var(--down); }
-  .sc-val.tp { color: var(--up); }
-
-  .opr-legend { padding: 10px 15px; font-size: 11px; display: flex; flex-wrap: wrap; gap: 8px; background: rgba(0,0,0,0.1); }
-  .leg-item { display: flex; align-items: center; gap: 4px; }
-  .leg-color { width: 10px; height: 10px; border-radius: 2px; }
-
-  .loading-text { padding:20px; text-align:center; color:var(--muted); font-size:13px; }
+:root{--bg:#0b0e14;--panel:#131722;--panel2:#1a1f2c;--line:#2f3a52;--txt:#e8eef7;--muted:#8b94a8;--acc:#2962ff;--up:#26a69a;--down:#ef5350;--warn:#ff9800}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;padding:0;overflow:hidden}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column}
+header{padding:10px 15px;background:#0e1219;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;font-weight:700;white-space:nowrap}
+header h1 span{color:var(--acc)}
+.controls{display:flex;gap:8px;flex:1;min-width:250px}
+select{flex:1;background:var(--panel2);border:1px solid var(--line);color:#fff;border-radius:6px;padding:8px;font-size:13px;font-family:inherit;outline:none;font-weight:600}
+.app{display:flex;flex:1;overflow:hidden;position:relative}
+@media(max-width:900px){.app{flex-direction:column}}
+.chart-container{flex:1;position:relative;background:#05080c;min-height:300px}
+#chart{position:absolute;inset:0;z-index:1}
+#overlayCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
+.panel{width:340px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto}
+@media(max-width:900px){.panel{width:100%;height:65vh;border-left:none;border-top:1px solid var(--line)}}
+.tabs{display:flex;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--line);background:#0e1219;position:sticky;top:0;z-index:10;flex:0 0 auto}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;padding:12px 16px;text-align:center;font-size:11px;font-weight:bold;color:var(--muted);cursor:pointer;text-transform:uppercase;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.active{color:var(--acc);border-bottom-color:var(--acc);background:var(--panel)}
+.mtf-row{display:flex;gap:6px;padding:10px 15px;border-bottom:1px solid var(--line);background:rgba(0,0,0,.2)}
+.mtf-badge{flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid var(--line);background:var(--panel2);color:var(--muted)}
+.mtf-badge.up{border-color:var(--up);color:var(--up);background:rgba(38,166,154,.1)}
+.mtf-badge.down{border-color:var(--down);color:var(--down);background:rgba(239,83,80,.1)}
+#status{padding:12px 15px;font-weight:bold;font-size:13px;text-align:center;border-bottom:1px solid var(--line)}
+.status-wait{background:rgba(255,152,0,.15);color:var(--warn)}
+.status-progress{background:rgba(38,166,154,.15);color:var(--up)}
+.status-invalid{background:rgba(239,83,80,.15);color:var(--down)}
+.panel-header{padding:12px 15px;border-bottom:1px solid var(--line);font-weight:bold;text-transform:uppercase;font-size:11px;color:var(--muted)}
+.setup-compact{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border-bottom:1px solid var(--line)}
+.setup-compact.buy{background:rgba(38,166,154,.05);border-left:4px solid var(--up)}
+.setup-compact.sell{background:rgba(239,83,80,.05);border-left:4px solid var(--down)}
+.sc-item{text-align:center}
+.sc-label{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.sc-val{font-family:monospace;font-size:14px;font-weight:bold}
+.sc-val.entry{color:var(--acc)}.sc-val.sl{color:var(--down)}.sc-val.tp{color:var(--up)}
+.opr-legend{padding:10px 15px;font-size:11px;display:none;gap:8px;background:rgba(0,0,0,.1)}
+.leg-color{width:10px;height:10px;border-radius:2px;background:#ff9800;display:inline-block;margin-right:4px}
+.loading-text{padding:20px;text-align:center;color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
-
 <header>
   <h1>Chart<span>Vision</span></h1>
   <div class="controls">
@@ -81,362 +58,361 @@
       <option value="US500">🇺🇸 US S&P 500</option>
     </select>
     <select id="tfSelect">
-      <option value="1m">1m</option>
-      <option value="5m">5m</option>
-      <option value="15m">15m</option>
-      <option value="1h">1h</option>
-      <option value="4h">4h</option>
-      <option value="1d">1D (Daily)</option>
+      <option value="1m">1m</option><option value="5m">5m</option><option value="15m">15m</option>
+      <option value="1h">1h</option><option value="4h">4h</option><option value="1d">1D (Daily)</option>
     </select>
   </div>
 </header>
-
 <div class="app">
   <div class="chart-container" id="chartContainer">
     <div id="chart"></div>
     <canvas id="overlayCanvas"></canvas>
   </div>
-  
   <div class="panel">
-    <div class="tabs">
-      <div class="tab active" id="tab-classic" onclick="switchTab('classic')">SMC Classique</div>
-      <div class="tab" id="tab-opr" onclick="switchTab('opr')">OPR GOLD</div>
+    <div class="tabs" id="tabs"></div>
+    <div class="mtf-row" id="mtf">
+      <div class="mtf-badge" id="b0">…</div><div class="mtf-badge" id="b1">…</div><div class="mtf-badge" id="b2">…</div>
     </div>
-
-    <!-- VIEW SMC CLASSIQUE -->
-    <div id="view-classic" style="display:block;">
-      <div class="mtf-row">
-        <div class="mtf-badge" id="badge-current"><span>...</span></div>
-        <div class="mtf-badge" id="badge-htf1"><span>...</span></div>
-        <div class="mtf-badge" id="badge-htf2"><span>...</span></div>
-      </div>
-      <div id="tradeStatusClassic" class="status-wait">Recherche de structure SMC...</div>
-      
-      <div class="panel-header"><div>Setup SMC Actif</div></div>
-      <div id="analysisContentClassic"><div class="loading-text">Aucun trade actif</div></div>
-    </div>
-
-    <!-- VIEW OPR GOLD -->
-    <div id="view-opr" style="display:none;">
-      <div id="tradeStatusOPR" class="status-wait">Chargement OPR...</div>
-      <div class="opr-legend">
-        <div class="leg-item"><div class="leg-color" style="background:#ff9800"></div> Zone OPR</div>
-      </div>
-      <div class="panel-header"><div>Setup OPR Actif</div></div>
-      <div id="analysisContentOPR"><div class="loading-text">Recherche...</div></div>
-    </div>
-
+    <div id="status" class="status-wait">Chargement…</div>
+    <div class="opr-legend" id="oprLeg"><span><i class="leg-color"></i>Zone OPR</span></div>
+    <div class="panel-header" id="phTitle">Setup</div>
+    <div id="content"><div class="loading-text">…</div></div>
   </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
-let chart, candleSeries;
-let currentData = [];
-let currentSymbol = 'XAUUSD';
-let currentTF = '1m';
-let currentPrice = 0;
-let currentTab = 'classic';
-let currentTime = 0;
+const STRATS = {classic:'SMC Classique', opr:'OPR Gold', ema:'📈 EMA Cross', bb:'📊 Bollinger+RSI', asia:'🌏 Asian Breakout'};
+let chart, candle, lines = {};
+let data = [], price = 0, now = 0, tab = 'classic';
+let sym = localStorage.getItem('cv_symbol') || 'XAUUSD';
+let tf = localStorage.getItem('cv_tf') || '1m';
+let states = {}, hint = '', asiaR = null;
+let htf = {t:0, k:'', v:[null,null]};
+let oprState = {levels:{oprH:null,oprL:null}, startTime:null, endTime:null, valid:false};
+let seqStarted = 0, seqApplied = 0;
+const cv = $('overlayCanvas'), ctx = cv.getContext('2d');
 
-// État SMC Classique (Verrouillage du trade)
-let smcState = { setup: null, status: 'IDLE', tradedOBTime: 0 };
+/* ---------- utilitaires ---------- */
+function dec(s){ if(s.includes('JPY')) return 3; if(s==='XAUUSD') return 2; if(s==='BTCUSD'||s==='US500'||s==='US100') return 1; return 5; }
+const fmt = p => p.toLocaleString('fr-FR',{minimumFractionDigits:dec(sym),maximumFractionDigits:dec(sym)});
+function loadStates(){ try{ states = JSON.parse(localStorage.getItem('cv_st_'+sym)||'{}'); }catch(e){ states = {}; } }
+function saveStates(){ try{ localStorage.setItem('cv_st_'+sym, JSON.stringify(states)); }catch(e){} }
+function setStatus(c,t){ const e=$('status'); e.className='status-'+c; e.textContent=t; }
 
-// État OPR
-let oprState = { levels: { oprH: null, oprL: null }, startTime: null, endTime: null, valid: false, setup: null };
+/* ---------- indicateurs ---------- */
+function emaArr(v,n){ const o=Array(v.length).fill(null); if(v.length<n) return o;
+  let e=v.slice(0,n).reduce((a,b)=>a+b)/n; o[n-1]=e; const k=2/(n+1);
+  for(let i=n;i<v.length;i++){ e=v[i]*k+e*(1-k); o[i]=e; } return o; }
+function boll(v,n=20,k=2){ const m=[],u=[],l=[];
+  for(let i=0;i<v.length;i++){ if(i<n-1){m.push(null);u.push(null);l.push(null);continue;}
+    let s=0; for(let j=i-n+1;j<=i;j++) s+=v[j]; const a=s/n; let q=0;
+    for(let j=i-n+1;j<=i;j++) q+=(v[j]-a)**2; const sd=Math.sqrt(q/n);
+    m.push(a);u.push(a+k*sd);l.push(a-k*sd); } return {m,u,l}; }
+function rsiArr(v,n=14){ const o=Array(v.length).fill(null); if(v.length<=n) return o; let g=0,l=0;
+  for(let i=1;i<=n;i++){ const d=v[i]-v[i-1]; d>0?g+=d:l-=d; } g/=n; l/=n;
+  o[n]=100-100/(1+(l?g/l:1e9));
+  for(let i=n+1;i<v.length;i++){ const d=v[i]-v[i-1]; g=(g*(n-1)+Math.max(d,0))/n; l=(l*(n-1)+Math.max(-d,0))/n; o[i]=100-100/(1+(l?g/l:1e9)); }
+  return o; }
+function atrAt(d,i,n=14){ let s=0,c=0; for(let j=Math.max(1,i-n+1);j<=i;j++){ const p=d[j-1].close;
+  s+=Math.max(d[j].high-d[j].low,Math.abs(d[j].high-p),Math.abs(d[j].low-p)); c++; } return c?s/c:0; }
 
-const overlayCanvas = $('overlayCanvas');
-const ctx = overlayCanvas.getContext('2d');
+/* ---------- moteur de trades (PENDING → ACTIVE → SL/TP) ---------- */
+const mk = (type,entry,sl,tp,t0,id,market,label) => ({type,entry,sl,tp,t0,id,market,label});
 
-if(localStorage.getItem('cv_symbol')) currentSymbol = localStorage.getItem('cv_symbol');
-if(localStorage.getItem('cv_tf')) currentTF = localStorage.getItem('cv_tf');
-
-function getDecimals(symbol) {
-  if(symbol.includes('JPY')) return 3; if(symbol === 'XAUUSD') return 2; if(symbol === 'BTCUSD' || symbol === 'US500' || symbol === 'US100') return 1; return 5;
-}
-const fmt = (p) => p.toLocaleString('fr-FR', {minimumFractionDigits: getDecimals(currentSymbol), maximumFractionDigits: getDecimals(currentSymbol)});
-
-function switchTab(tab) {
-    currentTab = tab;
-    $('tab-classic').classList.toggle('active', tab === 'classic');
-    $('tab-opr').classList.toggle('active', tab === 'opr');
-    $('view-classic').style.display = tab === 'classic' ? 'block' : 'none';
-    $('view-opr').style.display = tab === 'opr' ? 'block' : 'none';
-    
-    if (tab === 'opr' && currentTF !== '1m') {
-        currentTF = '1m'; $('tfSelect').value = '1m'; fetchMainData();
-    } else {
-        if (tab === 'classic') analyzeSMCClassic();
-        else analyzeOPR();
-        draw();
-    }
-}
-
-/* =========================================
-   INITIALISATION
-   ========================================= */
-function initChart() {
-  const chartContainer = $('chart');
-  chart = LightweightCharts.createChart(chartContainer, {
-    layout: { background: { type: 'solid', color: '#05080c' }, textColor: '#d1d4dc' },
-    grid: { vertLines: { color: '#1a1f2c' }, horzLines: { color: '#1a1f2c' } },
-    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    rightPriceScale: { borderColor: '#2f3a52' },
-    timeScale: { borderColor: '#2f3a52', timeVisible: true, secondsVisible: false },
-  });
-  candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
-  
-  new ResizeObserver(() => {
-    const rect = chartContainer.getBoundingClientRect();
-    chart.applyOptions({ width: rect.width, height: rect.height });
-    draw();
-  }).observe(chartContainer);
-
-  chart.timeScale().subscribeVisibleLogicalRangeChange(draw);
-  $('symbolSelect').value = currentSymbol;
-  $('tfSelect').value = currentTF;
+// Évalue le setup sur les high/low de toutes les bougies depuis sa création.
+// Si SL et TP sont dans la même bougie, le SL est considéré touché en premier (prudent).
+function evalSetup(s){
+  const b = s.type==='buy'; let act = !!s.market, n = 0;
+  for(const c of data){
+    if(c.time <= s.t0) continue; n++;
+    if(!act){ if(b ? c.low<=s.entry : c.high>=s.entry) act = true; }
+    if(act){
+      const hitSL = b ? c.low<=s.sl : c.high>=s.sl;
+      const hitTP = b ? c.high>=s.tp : c.low<=s.tp;
+      if(hitSL) return {st:'sl'}; if(hitTP) return {st:'tp'};
+    } else if(n>40) return {st:'cancel'};
+  }
+  return {st: act?'active':'pending'};
 }
 
-async function fetchUrl(targetUrl) {
-  try { let res = await fetch(targetUrl); if (res.ok) return await res.json(); } catch(e) {}
-  try { let res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`); if (res.ok) return await res.json(); } catch(e) {}
+function manage(key, detect){
+  const st = states[key] || (states[key] = {done:[], msg:''});
+  hint = 'Aucun signal';
+  if(!st.setup){
+    const s = detect(st.done);
+    if(s){ st.setup = s; st.done.push(s.id); st.done = st.done.slice(-40); st.msg = ''; }
+  }
+  if(st.setup){
+    const r = evalSetup(st.setup);
+    if(r.st==='sl'||r.st==='tp'||r.st==='cancel'){
+      st.msg = r.st==='tp' ? '🎯 TP atteint !' : r.st==='sl' ? '🛑 SL touché' : '⌛ Ordre expiré (entrée jamais touchée)';
+      st.setup = null; st.live = null; saveStates();
+    } else { st.live = r.st; saveStates(); renderSetup(key); return; }
+  }
+  setStatus(st.msg.includes('SL')?'invalid':'wait', st.msg || '🔍 Recherche de signal…');
+  $('content').innerHTML = `<div class="loading-text">${hint}</div>`;
+}
+
+function renderSetup(key){
+  const st = states[key], s = st.setup, b = s.type==='buy';
+  const risk = Math.abs(s.entry-s.sl), rr = Math.abs(s.tp-s.entry)/risk;
+  if(st.live==='active'){
+    const R = (b ? price-s.entry : s.entry-price)/risk;
+    setStatus('progress', `🚀 Trade en cours (${R>0?'+':''}${R.toFixed(2)} R)`);
+  } else setStatus('wait', `⏳ Ordre en attente — entrée à ${fmt(s.entry)}`);
+  $('content').innerHTML = `
+    <div class="setup-compact ${s.type}">
+      <div class="sc-item"><span class="sc-label">Entrée</span><span class="sc-val entry">${fmt(s.entry)}</span></div>
+      <div class="sc-item"><span class="sc-label">SL</span><span class="sc-val sl">${fmt(s.sl)}</span></div>
+      <div class="sc-item"><span class="sc-label">TP</span><span class="sc-val tp">${fmt(s.tp)}</span></div>
+    </div>
+    <div class="loading-text">${b?'ACHAT':'VENTE'} · RR ${rr.toFixed(2)} · ${s.label}</div>`;
+}
+
+/* ---------- détecteurs ---------- */
+function detectSMC(done){
+  const c = data.slice(0,-1); hint = 'Aucun setup validé.';
+  for(let i=c.length-3; i>=Math.max(1,c.length-20); i--){
+    const k=c[i], p=c[i-1]; if(done.includes(k.time)) continue;
+    const big = Math.abs(k.close-k.open) > price*0.0005; let dir = 0;
+    if(big && k.close>k.open && p.close<p.open) dir = 1;
+    else if(big && k.close<k.open && p.close>p.open) dir = -1;
+    if(!dir) continue;
+    const entry=(p.high+p.low)/2;
+    const sl = dir===1 ? p.low-p.low*0.0002 : p.high+p.high*0.0002;
+    const tp = dir===1 ? entry+(entry-sl)*2 : entry-(sl-entry)*2;
+    return mk(dir===1?'buy':'sell', entry, sl, tp, c[c.length-1].time, k.time, false, 'Order Block 50%');
+  }
   return null;
 }
 
-async function fetchMainData() {
-  const result = await fetchUrl(`https://biquote.io/api/${currentSymbol}/ohlc?interval=${currentTF}&limit=300&t=${Date.now()}`);
-  if (!result || !result.bars) return;
+function detectEMA(done){
+  const c = data.slice(0,-1);
+  if(c.length<210){ hint=`Données insuffisantes : ${c.length}/210 bougies`; return null; }
+  const cl=c.map(x=>x.close), e5=emaArr(cl,50), e2=emaArr(cl,200), L=c.length-1;
+  hint = `EMA50 ${e5[L]>e2[L]?'>':'<'} EMA200 · aucun croisement récent`;
+  for(let i=L;i>L-5;i--){
+    const up = e5[i-1]<=e2[i-1] && e5[i]>e2[i], dn = e5[i-1]>=e2[i-1] && e5[i]<e2[i];
+    if(!up&&!dn || done.includes(c[i].time)) continue;
+    const e=c[i].close, a=atrAt(c,i); if(!a) continue;
+    return mk(up?'buy':'sell', e, up?e-2*a:e+2*a, up?e+6*a:e-6*a, c[i].time, c[i].time, true, up?'Golden Cross':'Death Cross');
+  }
+  return null;
+}
 
-  const parsedData = result.bars.map(d => ({ time: Math.floor(new Date(d.openTime).getTime() / 1000), open: parseFloat(d.open), high: parseFloat(d.high), low: parseFloat(d.low), close: parseFloat(d.close) }));
-  const uniqueData = []; const seenTimes = new Set();
-  for(const item of parsedData) { if(!seenTimes.has(item.time) && !isNaN(item.time)) { seenTimes.add(item.time); uniqueData.push(item); } }
-  currentData = uniqueData.sort((a, b) => a.time - b.time);
-  
-  candleSeries.setData(currentData);
-  if (currentData.length > 0) { 
-      currentPrice = currentData[currentData.length - 1].close; 
-      currentTime = currentData[currentData.length - 1].time;
-      if (currentTab === 'classic') analyzeSMCClassic();
-      else analyzeOPR();
-      draw();
+function detectBB(done){
+  const c = data.slice(0,-1);
+  if(c.length<40){ hint='Données insuffisantes'; return null; }
+  const cl=c.map(x=>x.close), b=boll(cl), r=rsiArr(cl), i=c.length-1, k=c[i];
+  hint = `RSI ${r[i].toFixed(1)} · attente de touche de bande + RSI extrême`;
+  const t = (k.low<=b.l[i]&&r[i]<30)?'buy':(k.high>=b.u[i]&&r[i]>70)?'sell':null;
+  if(!t || done.includes(k.time)) return null;
+  const a=atrAt(c,i), e=k.close, sl=t==='buy'?e-1.5*a:e+1.5*a, tp=b.m[i];
+  if(Math.abs(tp-e)<0.5*Math.abs(e-sl)){ hint='Signal ignoré : bande médiane trop proche'; return null; }
+  return mk(t,e,sl,tp,k.time,k.time,true,'Retour à la moyenne');
+}
+
+function calcAsia(){ // Range asiatique 00h–06h UTC du jour de la dernière bougie
+  const last=data[data.length-1], day=Math.floor(last.time/86400);
+  let H=-1,L=1e12,t1=null,t2=null;
+  for(const c of data){ if(Math.floor(c.time/86400)!==day) continue;
+    if(Math.floor(c.time%86400/3600)<6){ H=Math.max(H,c.high); L=Math.min(L,c.low); if(t1===null) t1=c.time; t2=c.time; } }
+  return t1===null ? null : {H,L,t1,t2,day,done:last.time>=day*86400+21600};
+}
+function detectAsia(done){
+  const R=asiaR, c=data.slice(0,-1);
+  if(tf==='1d'){ hint='Choisis un TF intraday (1m à 1h)'; return null; }
+  if(!R){ hint='Pas de données de session asiatique pour ce jour'; return null; }
+  if(!R.done){ hint='⏳ Range asiatique en construction (00h–06h UTC)'; return null; }
+  hint = `Range ${fmt(R.L)} – ${fmt(R.H)} · attente cassure Londres (07h–12h UTC)`;
+  const id='A'+R.day; if(done.includes(id)) return null;
+  const a=atrAt(c,c.length-1);
+  for(const k of c){
+    if(Math.floor(k.time/86400)!==R.day) continue;
+    const h=Math.floor(k.time%86400/3600); if(h<7||h>=12) continue;
+    if(Math.abs(k.close-k.open)<0.5*a) continue; // cassure "violente" = corps ≥ 0,5 ATR
+    const t = k.close>R.H?'buy':k.close<R.L?'sell':null; if(!t) continue;
+    const e=k.close, sl=(R.H+R.L)/2, risk=Math.abs(e-sl); if(!risk) continue;
+    return mk(t,e,sl,t==='buy'?e+2*risk:e-2*risk,k.time,id,true,'Cassure range asiatique');
+  }
+  return null;
+}
+
+/* ---------- SMC : badges MTF réels ---------- */
+function badges(){
+  const labels=[tf,'15m','4h'], cl=data.map(x=>x.close), e=emaArr(cl,50);
+  const own = e[e.length-1]!=null ? price>e[e.length-1] : null;
+  [own,htf.v[0],htf.v[1]].forEach((v,i)=>{
+    const el=$('b'+i); el.className='mtf-badge'+(v===null?'':v?' up':' down');
+    el.textContent = `${labels[i]} : ${v===null?'—':v?'HAUSSE':'BAISSE'}`; });
+}
+async function loadHTF(){
+  const k=sym; if(htf.k===k && Date.now()-htf.t<60000) return; htf.k=k; htf.t=Date.now();
+  const r = await Promise.all([getBars(k,'15m',250),getBars(k,'4h',250)]);
+  if(k!==sym) return;
+  htf.v = r.map(b=>{ if(!b||b.length<50) return null; const c=b.map(x=>x.close), e=emaArr(c,50); return c[c.length-1]>e[e.length-1]; });
+  if(tab==='classic') badges();
+}
+
+/* ---------- OPR (inchangé) ---------- */
+function getNYTime(ts){
+  const nyString = new Date(ts*1000).toLocaleString("en-US",{timeZone:"America/New_York",hour12:false});
+  const parts = nyString.split(", ")[1].split(":"); return {h:parseInt(parts[0]),m:parseInt(parts[1])};
+}
+function analyzeOPR(){
+  if(data.length<50) return;
+  let oprH=-1,oprL=999999,startT=null,endT=null;
+  const todayStr = new Date().toLocaleDateString("en-US",{timeZone:"America/New_York"});
+  for(const bar of data){
+    const ny=getNYTime(bar.time);
+    const barDayStr=new Date(bar.time*1000).toLocaleDateString("en-US",{timeZone:"America/New_York"});
+    if(barDayStr!==todayStr) continue;
+    if(ny.h===9 && ny.m>=30 && ny.m<45){ if(startT===null) startT=bar.time; endT=bar.time; oprH=Math.max(oprH,bar.high); oprL=Math.min(oprL,bar.low); }
+  }
+  oprState.levels={oprH,oprL}; oprState.startTime=startT; oprState.endTime=endT;
+  const nowNY=getNYTime(now);
+  const ready=(nowNY.h>9||(nowNY.h===9&&nowNY.m>=45))&&oprH!==-1;
+  if(ready){
+    let atrSum=0; for(let i=data.length-14;i<data.length;i++) atrSum+=(data[i].high-data[i].low);
+    oprState.valid=(oprH-oprL)<=(atrSum/14)*3.0;
+    setStatus(oprState.valid?'wait':'invalid', oprState.valid?"🔍 OPR valide. Attente de sweep...":"⚠️ OPR trop grand. Journée ignorée.");
+    $('content').innerHTML=`<div class="loading-text">${oprState.valid?'En attente de setup...':'Aucun trade'}</div>`;
+  } else { setStatus('wait',"⏳ Construction de l'OPR (09h30 - 09h45 NY)..."); $('content').innerHTML='<div class="loading-text">Recherche...</div>'; }
+}
+
+/* ---------- indicateurs affichés sur le graphique ---------- */
+function setInd(){
+  const ser = a => a.map((v,i)=>v==null?null:{time:data[i].time,value:v}).filter(Boolean);
+  const cl = data.map(x=>x.close);
+  if(tab==='ema'){ lines.e50.setData(ser(emaArr(cl,50))); lines.e200.setData(ser(emaArr(cl,200))); }
+  else { lines.e50.setData([]); lines.e200.setData([]); }
+  if(tab==='bb'){ const b=boll(cl); lines.bu.setData(ser(b.u)); lines.bl.setData(ser(b.l)); lines.bm.setData(ser(b.m)); }
+  else { lines.bu.setData([]); lines.bl.setData([]); lines.bm.setData([]); }
+}
+
+/* ---------- onglets ---------- */
+function buildTabs(){
+  $('tabs').innerHTML = Object.entries(STRATS).map(([k,v])=>`<div class="tab" data-k="${k}">${v}</div>`).join('');
+  $('tabs').onclick = e => { const t=e.target.closest('.tab'); if(t) switchTab(t.dataset.k); };
+}
+function switchTab(k){
+  tab=k;
+  document.querySelectorAll('.tab').forEach(e=>e.classList.toggle('active',e.dataset.k===k));
+  $('mtf').style.display = k==='classic'?'flex':'none';
+  $('oprLeg').style.display = k==='opr'?'flex':'none';
+  $('phTitle').textContent = 'Setup '+STRATS[k]+' actif';
+  document.querySelector('.tab.active').scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
+  if(k==='opr' && tf!=='1m'){ tf='1m'; $('tfSelect').value='1m'; resetData(); fetchMainData(); }
+  else refresh();
+}
+function refresh(){
+  if(data.length<2) return;
+  if(tab==='asia') asiaR = calcAsia();
+  ({ classic:()=>{ badges(); manage('smc',detectSMC); }, opr:analyzeOPR,
+     ema:()=>manage('ema',detectEMA), bb:()=>manage('bb',detectBB), asia:()=>manage('asia',detectAsia) })[tab]();
+  setInd(); sd();
+}
+
+/* ---------- données ---------- */
+async function fetchUrl(u){
+  try{ const r=await fetch(u); if(r.ok) return await r.json(); }catch(e){}
+  try{ const r=await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`); if(r.ok) return await r.json(); }catch(e){}
+  return null;
+}
+async function getBars(s,i,limit){
+  const q = async n => { const r=await fetchUrl(`https://biquote.io/api/${s}/ohlc?interval=${i}&limit=${n}&t=${Date.now()}`); return r&&r.bars?r.bars:null; };
+  const raw = (await q(limit)) || (limit>300 ? await q(300) : null); if(!raw) return null;
+  const seen=new Set(), out=[];
+  for(const d of raw){ const t=Math.floor(new Date(d.openTime).getTime()/1000);
+    if(isNaN(t)||seen.has(t)) continue; seen.add(t);
+    out.push({time:t,open:+d.open,high:+d.high,low:+d.low,close:+d.close}); }
+  return out.sort((a,b)=>a.time-b.time);
+}
+function resetData(){ data=[]; candle.setData([]); }
+async function fetchMainData(){
+  const my=++seqStarted, s=sym, t=tf;
+  const bars = await getBars(s,t,1000);
+  if(!bars||!bars.length||s!==sym||t!==tf||my<seqApplied) return; // anti-écrasement (changement d'actif / réponse tardive)
+  seqApplied=my;
+  const prevLast = data.length ? data[data.length-1].time : null;
+  if(prevLast!==null && bars.some(b=>b.time===prevLast)){ for(const b of bars) if(b.time>=prevLast) candle.update(b); }
+  else candle.setData(bars);
+  data=bars; price=bars[bars.length-1].close; now=bars[bars.length-1].time;
+  loadHTF(); refresh();
+}
+
+/* ---------- dessin ---------- */
+let raf=0; const sd=()=>{ if(!raf) raf=requestAnimationFrame(()=>{raf=0;draw();}); };
+function draw(){
+  const r=$('chart').getBoundingClientRect(), d=window.devicePixelRatio||1;
+  const w=Math.round(r.width*d), h=Math.round(r.height*d);
+  if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; }
+  ctx.setTransform(d,0,0,d,0,0); ctx.clearRect(0,0,r.width,r.height);
+  const CW=r.width, X=t=>chart.timeScale().timeToCoordinate(t), Y=p=>candle.priceToCoordinate(p);
+  const st = {classic:'smc',ema:'ema',bb:'bb',asia:'asia'}[tab];
+
+  if(st && states[st] && states[st].setup){
+    const s=states[st].setup, pend=states[st].live==='pending';
+    const x0=Math.max(0, X(s.t0) ?? CW-100), yE=Y(s.entry), yS=Y(s.sl), yT=Y(s.tp);
+    if(yE!==null&&yS!==null&&yT!==null){
+      ctx.lineWidth=2; if(pend) ctx.setLineDash([4,4]);
+      ctx.fillStyle='rgba(38,166,154,.15)'; ctx.strokeStyle='rgba(38,166,154,.8)';
+      ctx.fillRect(x0,Math.min(yE,yT),CW-x0,Math.abs(yE-yT)); ctx.strokeRect(x0,Math.min(yE,yT),CW-x0,Math.abs(yE-yT));
+      ctx.fillStyle='rgba(239,83,80,.15)'; ctx.strokeStyle='rgba(239,83,80,.8)';
+      ctx.fillRect(x0,Math.min(yE,yS),CW-x0,Math.abs(yE-yS)); ctx.strokeRect(x0,Math.min(yE,yS),CW-x0,Math.abs(yE-yS));
+      ctx.setLineDash([5,5]); ctx.beginPath(); ctx.moveTo(x0,yE); ctx.lineTo(CW,yE); ctx.strokeStyle='#2962ff'; ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+  if(tab==='asia' && asiaR){
+    const x0=Math.max(0,X(asiaR.t1)??0), yH=Y(asiaR.H), yL=Y(asiaR.L);
+    if(yH!==null&&yL!==null){
+      ctx.fillStyle='rgba(41,98,255,.15)'; ctx.strokeStyle='rgba(41,98,255,.9)'; ctx.lineWidth=1;
+      ctx.fillRect(x0,yH,CW-x0,yL-yH); ctx.strokeRect(x0,yH,CW-x0,yL-yH);
+      ctx.fillStyle='#5b8cff'; ctx.font='bold 10px sans-serif'; ctx.textAlign='left'; ctx.fillText('Range Asie',x0+4,yH-5);
+    }
+  }
+  if(tab==='opr' && oprState.levels.oprH>0){
+    const line=(p,label)=>{ const y=Y(p); if(y===null) return;
+      ctx.strokeStyle='#ff9800'; ctx.lineWidth=1; ctx.setLineDash([5,5]); ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(CW,y); ctx.stroke();
+      ctx.setLineDash([]); ctx.fillStyle='#ff9800'; ctx.font='bold 10px sans-serif'; ctx.textAlign='left'; ctx.fillText(label,5,y-5); };
+    line(oprState.levels.oprH,'OPR H'); line(oprState.levels.oprL,'OPR L');
+    if(oprState.startTime&&oprState.endTime){
+      const xs=X(oprState.startTime), xe=X(oprState.endTime), yH=Y(oprState.levels.oprH), yL=Y(oprState.levels.oprL);
+      if(xs!==null&&xe!==null&&yH!==null&&yL!==null){
+        ctx.fillStyle='rgba(255,152,0,.15)'; ctx.fillRect(xs,yH,xe-xs,yL-yH);
+        ctx.strokeStyle='rgba(255,152,0,.8)'; ctx.strokeRect(xs,yH,xe-xs,yL-yH);
+        ctx.fillStyle='#ff9800'; ctx.fillText('Zone OPR',xs+2,yH-8);
+      }
+    }
   }
 }
 
-/* =========================================
-   LOGIQUE SMC CLASSIQUE (Figée & Réaliste)
-   ========================================= */
-function analyzeSMCClassic() {
-    if (currentData.length < 50) return;
-    
-    // 1. Mise à jour des badges MTF (EMA)
-    const ema = (arr) => arr.reduce((a, b) => a + b.close, 0) / arr.length;
-    const isUp = currentPrice > ema(currentData.slice(-50));
-    const cls = isUp ? 'up' : 'down';
-    ['badge-current','badge-htf1','badge-htf2'].forEach((id, i) => {
-        $(id).className = `mtf-badge ${cls}`;
-        $(id).innerHTML = `<span>${['1m','15m','4h'][i]} : ${isUp ? 'HAUSSE' : 'BAISSE'}</span>`;
-    });
-
-    // 2. Si un trade est DÉJÀ actif, on le laisse vivre (on ne recalcule rien)
-    if (smcState.setup) {
-        const s = smcState.setup;
-        const hitSL = s.type === 'buy' ? currentPrice <= s.sl : currentPrice >= s.sl;
-        const hitTP = s.type === 'buy' ? currentPrice >= s.tp : currentPrice <= s.tp;
-        
-        if (hitSL || hitTP) {
-            smcState.setup = null; // Le trade est terminé
-            smcState.status = 'IDLE';
-            $('tradeStatusClassic').className = 'status-wait';
-            $('tradeStatusClassic').textContent = hitTP ? "🎯 TP Atteint !" : "🛑 SL Touché !";
-            $('analysisContentClassic').innerHTML = '<div class="loading-text">Recherche d\'un nouveau setup...</div>';
-        } else {
-            // Affichage de la progression
-            const R = (currentPrice - s.entry) / (s.sl - s.entry) * (s.type === 'buy' ? 1 : -1);
-            $('tradeStatusClassic').className = 'status-progress';
-            $('tradeStatusClassic').textContent = `🚀 Trade en cours (${R > 0 ? '+' : ''}${R.toFixed(2)} R)`;
-            return; // On sort, le trade est verrouillé
-        }
-    }
-
-    // 3. Recherche d'un NOUVEAU setup (si pas de trade actif)
-    const closedCandles = currentData.slice(0, -1);
-    let validOB = null;
-    let dir = 0;
-
-    for (let i = closedCandles.length - 3; i >= closedCandles.length - 20; i--) {
-        const c = closedCandles[i]; const prev = closedCandles[i-1];
-        if (c.time === smcState.tradedOBTime) continue;
-
-        // Détection basique d'un OB Haussier (Rouge -> Grosse Verte)
-        if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0005) {
-            validOB = { top: prev.high, bottom: prev.low, time: c.time };
-            dir = 1; break;
-        }
-        // Détection basique d'un OB Baissier (Verte -> Grosse Rouge)
-        if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0005) {
-            validOB = { top: prev.high, bottom: prev.low, time: c.time };
-            dir = -1; break;
-        }
-    }
-
-    if (validOB) {
-        const entry = (validOB.top + validOB.bottom) / 2;
-        const sl = dir === 1 ? validOB.bottom - (validOB.bottom * 0.0002) : validOB.top + (validOB.top * 0.0002);
-        const tp = dir === 1 ? entry + (entry - sl) * 2 : entry - (sl - entry) * 2;
-        
-        smcState.setup = { type: dir === 1 ? 'buy' : 'sell', entry, sl, tp, startTime: validOB.time };
-        smcState.tradedOBTime = validOB.time;
-        
-        $('tradeStatusClassic').className = 'status-progress';
-        $('tradeStatusClassic').textContent = `🚀 Nouveau Trade ${dir === 1 ? 'ACHAT' : 'VENTE'} !`;
-        
-        renderSMCPanel();
-    } else {
-        $('tradeStatusClassic').className = 'status-wait';
-        $('tradeStatusClassic').textContent = "🔍 Recherche de structure...";
-        $('analysisContentClassic').innerHTML = '<div class="loading-text">Aucun setup validé.</div>';
-    }
+/* ---------- init ---------- */
+function initChart(){
+  const el=$('chart');
+  chart=LightweightCharts.createChart(el,{
+    layout:{background:{type:'solid',color:'#05080c'},textColor:'#d1d4dc'},
+    grid:{vertLines:{color:'#1a1f2c'},horzLines:{color:'#1a1f2c'}},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    rightPriceScale:{borderColor:'#2f3a52'},
+    timeScale:{borderColor:'#2f3a52',timeVisible:true,secondsVisible:false}});
+  candle=chart.addCandlestickSeries({upColor:'#26a69a',downColor:'#ef5350',borderVisible:false,wickUpColor:'#26a69a',wickDownColor:'#ef5350'});
+  const L=(c,w)=>chart.addLineSeries({color:c,lineWidth:w,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+  lines.e50=L('#2962ff',2); lines.e200=L('#ff9800',2);
+  lines.bu=L('rgba(98,142,255,.8)',1); lines.bl=L('rgba(98,142,255,.8)',1); lines.bm=L('rgba(139,148,168,.7)',1);
+  new ResizeObserver(()=>{ const r=el.getBoundingClientRect(); chart.applyOptions({width:r.width,height:r.height}); sd(); }).observe(el);
+  chart.timeScale().subscribeVisibleLogicalRangeChange(sd);
+  chart.subscribeCrosshairMove(sd);
+  ['wheel','pointermove','touchmove'].forEach(e=>$('chartContainer').addEventListener(e,sd,{passive:true}));
+  $('symbolSelect').value=sym; $('tfSelect').value=tf;
 }
-
-function renderSMCPanel() {
-    if (!smcState.setup) return;
-    const s = smcState.setup;
-    $('analysisContentClassic').innerHTML = `
-        <div class="setup-compact ${s.type}">
-            <div class="sc-item"><span class="sc-label">Entrée</span><span class="sc-val entry">${fmt(s.entry)}</span></div>
-            <div class="sc-item"><span class="sc-label">SL</span><span class="sc-val sl">${fmt(s.sl)}</span></div>
-            <div class="sc-item"><span class="sc-label">TP</span><span class="sc-val tp">${fmt(s.tp)}</span></div>
-        </div>
-    `;
-}
-
-/* =========================================
-   LOGIQUE OPR GOLD
-   ========================================= */
-function getNYTime(ts) {
-    const d = new Date(ts * 1000);
-    const nyString = d.toLocaleString("en-US", { timeZone: "America/New_York", hour12: false });
-    const parts = nyString.split(", ")[1].split(":");
-    return { h: parseInt(parts[0]), m: parseInt(parts[1]) };
-}
-
-function analyzeOPR() {
-    if (currentData.length < 50) return;
-    let oprH = -1, oprL = 999999, startT = null, endT = null;
-    const todayStr = new Date().toLocaleDateString("en-US", { timeZone: "America/New_York" });
-    
-    for (const bar of currentData) {
-        const ny = getNYTime(bar.time);
-        const barDayStr = new Date(bar.time * 1000).toLocaleDateString("en-US", { timeZone: "America/New_York" });
-        if (barDayStr !== todayStr) continue; 
-        
-        if (ny.h === 9 && ny.m >= 30 && ny.m < 45) {
-            if (startT === null) startT = bar.time;
-            endT = bar.time;
-            oprH = Math.max(oprH, bar.high); oprL = Math.min(oprL, bar.low);
-        }
-    }
-    
-    oprState.levels = { oprH, oprL }; oprState.startTime = startT; oprState.endTime = endT;
-    
-    const nowNY = getNYTime(currentTime);
-    const isOPRReady = (nowNY.h > 9 || (nowNY.h === 9 && nowNY.m >= 45)) && oprH !== -1;
-    
-    if (isOPRReady) {
-        const oprSize = oprH - oprL;
-        let atrSum = 0;
-        for (let i = currentData.length - 14; i < currentData.length; i++) atrSum += (currentData[i].high - currentData[i].low);
-        const atr = atrSum / 14;
-        
-        oprState.valid = oprSize <= atr * 3.0;
-        
-        $('tradeStatusOPR').className = oprState.valid ? 'status-wait' : 'status-invalid';
-        $('tradeStatusOPR').textContent = oprState.valid ? "🔍 OPR valide. Attente de sweep..." : "⚠️ OPR trop grand. Journée ignorée.";
-        
-        $('analysisContentOPR').innerHTML = `<div class="loading-text">${oprState.valid ? 'En attente de setup...' : 'Aucun trade'}</div>`;
-    } else {
-        $('tradeStatusOPR').className = 'status-wait';
-        $('tradeStatusOPR').textContent = "⏳ Construction de l'OPR (09h30 - 09h45 NY)...";
-    }
-}
-
-/* =========================================
-   DESSIN SUR LE GRAPHIQUE
-   ========================================= */
-function draw() {
-    const rect = $('chart').getBoundingClientRect();
-    if (overlayCanvas.width !== rect.width || overlayCanvas.height !== rect.height) {
-        overlayCanvas.width = rect.width; overlayCanvas.height = rect.height;
-    }
-    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-    
-    const X = t => chart.timeScale().timeToCoordinate(t);
-    const Y = p => candleSeries.priceToCoordinate(p);
-
-    // DESSIN SMC (Verrouillé)
-    if (currentTab === 'classic' && smcState.setup) {
-        const s = smcState.setup;
-        const xStart = X(s.startTime) || (overlayCanvas.width - 100);
-        const xEnd = overlayCanvas.width;
-        const yE = Y(s.entry), ySL = Y(s.sl), yTP = Y(s.tp);
-        
-        if (yE !== null && ySL !== null && yTP !== null) {
-            ctx.fillStyle = 'rgba(38,166,154,0.15)'; ctx.strokeStyle = 'rgba(38,166,154,0.8)'; ctx.lineWidth = 2;
-            ctx.fillRect(xStart, Math.min(yE, yTP), xEnd - xStart, Math.abs(yE - yTP));
-            ctx.strokeRect(xStart, Math.min(yE, yTP), xEnd - xStart, Math.abs(yE - yTP));
-            
-            ctx.fillStyle = 'rgba(239,83,80,0.15)'; ctx.strokeStyle = 'rgba(239,83,80,0.8)';
-            ctx.fillRect(xStart, Math.min(yE, ySL), xEnd - xStart, Math.abs(yE - ySL));
-            ctx.strokeRect(xStart, Math.min(yE, ySL), xEnd - xStart, Math.abs(yE - ySL));
-            
-            ctx.beginPath(); ctx.setLineDash([5,5]); ctx.moveTo(xStart, yE); ctx.lineTo(xEnd, yE);
-            ctx.strokeStyle = '#2962ff'; ctx.stroke(); ctx.setLineDash([]);
-        }
-    }
-    
-    // DESSIN OPR
-    if (currentTab === 'opr' && oprState.levels.oprH) {
-        const drawLine = (price, color, label) => {
-            const y = Y(price); if (y === null) return;
-            ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(overlayCanvas.width, y); ctx.stroke();
-            ctx.setLineDash([]); ctx.fillStyle = color; ctx.font = 'bold 10px sans-serif';
-            ctx.textAlign = 'left'; ctx.fillText(label, 5, y - 5);
-        };
-        if(oprState.levels.oprH) drawLine(oprState.levels.oprH, '#ff9800', 'OPR H');
-        if(oprState.levels.oprL) drawLine(oprState.levels.oprL, '#ff9800', 'OPR L');
-        
-        if (oprState.startTime && oprState.endTime) {
-            const xStart = X(oprState.startTime), xEnd = X(oprState.endTime);
-            const yH = Y(oprState.levels.oprH), yL = Y(oprState.levels.oprL);
-            if (xStart !== null && xEnd !== null && yH !== null && yL !== null) {
-                ctx.fillStyle = 'rgba(255, 152, 0, 0.15)';
-                ctx.fillRect(xStart, yH, xEnd - xStart, yL - yH);
-                ctx.strokeStyle = 'rgba(255, 152, 0, 0.8)';
-                ctx.strokeRect(xStart, yH, xEnd - xStart, yL - yH);
-                ctx.fillStyle = '#ff9800'; ctx.font = 'bold 10px sans-serif';
-                ctx.fillText('Zone OPR', xStart + 2, yH - 8);
-            }
-        }
-    }
-}
-
-window.addEventListener('load', () => {
-  initChart();
-  fetchMainData();
-  setInterval(fetchMainData, 5000);
-  setInterval(draw, 250);
-});
-
-$('symbolSelect').addEventListener('change', (e) => { 
-    currentSymbol = e.target.value; localStorage.setItem('cv_symbol', currentSymbol); 
-    smcState.setup = null; smcState.tradedOBTime = 0; // Reset quand on change d'actif
-    fetchMainData();
-});
-$('tfSelect').addEventListener('change', (e) => { 
-    currentTF = e.target.value; localStorage.setItem('cv_tf', currentTF); 
-    smcState.setup = null; smcState.tradedOBTime = 0; // Reset quand on change de TF
-    fetchMainData();
+$('symbolSelect').addEventListener('change',e=>{
+  sym=e.target.value; localStorage.setItem('cv_symbol',sym); loadStates(); htf.k=''; resetData(); fetchMainData(); });
+$('tfSelect').addEventListener('change',e=>{
+  tf=e.target.value; localStorage.setItem('cv_tf',tf); resetData(); fetchMainData(); });
+window.addEventListener('load',()=>{
+  buildTabs(); initChart(); loadStates(); switchTab('classic'); fetchMainData(); setInterval(fetchMainData,5000);
 });
 </script>
 </body>
