@@ -8,7 +8,7 @@
 <style>
   :root{
     --bg:#0b0e14;--panel:#131722;--panel2:#1a1f2c;--line:#2f3a52;
-    --txt:#e8eef7;--muted:#8b94a8;--acc:#2962ff;--up:#26a69a;--down:#ef5350;--warn:#ff9800;--fvg:#ab47bc;
+    --txt:#e8eef7;--muted:#8b94a8;--acc:#2962ff;--up:#26a69a;--down:#ef5350;--warn:#ff9800;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
   html,body{height:100%; margin:0; padding:0; overflow:hidden;}
@@ -36,7 +36,6 @@
   .panel{ width:340px; background:var(--panel); border-left:1px solid var(--line); display:flex; flex-direction:column; overflow-y:auto; }
   @media(max-width:900px){ .panel{width:100%; height:65vh; border-left:none; border-top:1px solid var(--line);} }
   
-  /* TABS */
   .tabs { display: flex; border-bottom: 1px solid var(--line); background: #0e1219; position: sticky; top: 0; z-index: 10; }
   .tab { flex: 1; padding: 12px; text-align: center; font-size: 11px; font-weight: bold; color: var(--muted); cursor: pointer; text-transform: uppercase; border-bottom: 2px solid transparent; }
   .tab.active { color: var(--acc); border-bottom-color: var(--acc); background: var(--panel); }
@@ -120,11 +119,9 @@
     <!-- VIEW OPR GOLD -->
     <div id="view-opr" style="display:none;">
       <div id="tradeStatusOPR" class="status-wait">Chargement OPR...</div>
-      
       <div class="opr-legend">
         <div class="leg-item"><div class="leg-color" style="background:#ff9800"></div> Zone OPR</div>
       </div>
-
       <div class="panel-header"><div>Setup OPR Actif</div></div>
       <div id="analysisContentOPR"><div class="loading-text">Recherche...</div></div>
     </div>
@@ -142,16 +139,11 @@ let currentPrice = 0;
 let currentTab = 'classic';
 let currentTime = 0;
 
-// Variables SMC Classique
-let smcSetup = null; 
+// État SMC Classique (Verrouillage du trade)
+let smcState = { setup: null, status: 'IDLE', tradedOBTime: 0 };
 
-// Variables OPR
-let oprState = { 
-    levels: { oprH: null, oprL: null },
-    startTime: null, endTime: null,
-    valid: false,
-    setup: null
-};
+// État OPR
+let oprState = { levels: { oprH: null, oprL: null }, startTime: null, endTime: null, valid: false, setup: null };
 
 const overlayCanvas = $('overlayCanvas');
 const ctx = overlayCanvas.getContext('2d');
@@ -168,21 +160,16 @@ function switchTab(tab) {
     currentTab = tab;
     $('tab-classic').classList.toggle('active', tab === 'classic');
     $('tab-opr').classList.toggle('active', tab === 'opr');
-    
     $('view-classic').style.display = tab === 'classic' ? 'block' : 'none';
     $('view-opr').style.display = tab === 'opr' ? 'block' : 'none';
     
-    if (tab === 'opr') {
-        if (currentTF !== '1m') {
-            currentTF = '1m';
-            $('tfSelect').value = '1m';
-            fetchMainData();
-        }
-        analyzeOPR();
+    if (tab === 'opr' && currentTF !== '1m') {
+        currentTF = '1m'; $('tfSelect').value = '1m'; fetchMainData();
     } else {
-        analyzeSMCClassic();
+        if (tab === 'classic') analyzeSMCClassic();
+        else analyzeOPR();
+        draw();
     }
-    draw();
 }
 
 /* =========================================
@@ -236,37 +223,84 @@ async function fetchMainData() {
 }
 
 /* =========================================
-   LOGIQUE SMC CLASSIQUE (Structure & Setup)
+   LOGIQUE SMC CLASSIQUE (Figée & Réaliste)
    ========================================= */
 function analyzeSMCClassic() {
     if (currentData.length < 50) return;
     
+    // 1. Mise à jour des badges MTF (EMA)
     const ema = (arr) => arr.reduce((a, b) => a + b.close, 0) / arr.length;
     const isUp = currentPrice > ema(currentData.slice(-50));
     const cls = isUp ? 'up' : 'down';
-    
-    $('badge-current').className = `mtf-badge ${cls}`;
-    $('badge-current').innerHTML = `<span>1m : ${isUp ? 'HAUSSE' : 'BAISSE'}</span>`;
-    
-    $('badge-htf1').className = `mtf-badge ${cls}`;
-    $('badge-htf1').innerHTML = `<span>15m : ${isUp ? 'HAUSSE' : 'BAISSE'}</span>`;
-    
-    $('badge-htf2').className = `mtf-badge ${cls}`;
-    $('badge-htf2').innerHTML = `<span>4h : ${isUp ? 'HAUSSE' : 'BAISSE'}</span>`;
+    ['badge-current','badge-htf1','badge-htf2'].forEach((id, i) => {
+        $(id).className = `mtf-badge ${cls}`;
+        $(id).innerHTML = `<span>${['1m','15m','4h'][i]} : ${isUp ? 'HAUSSE' : 'BAISSE'}</span>`;
+    });
 
-    const atr = currentPrice * 0.001;
-    
-    if (isUp) {
-        smcSetup = { type: 'buy', entry: currentPrice - (atr * 0.5), sl: currentPrice - (atr * 1.5), tp: currentPrice + (atr * 2.0), startTime: currentTime };
-        $('tradeStatusClassic').className = 'status-progress';
-        $('tradeStatusClassic').textContent = "🚀 Trade ACHAT actif";
-    } else {
-        smcSetup = { type: 'sell', entry: currentPrice + (atr * 0.5), sl: currentPrice + (atr * 1.5), tp: currentPrice - (atr * 2.0), startTime: currentTime };
-        $('tradeStatusClassic').className = 'status-progress';
-        $('tradeStatusClassic').textContent = "🚀 Trade VENTE actif";
+    // 2. Si un trade est DÉJÀ actif, on le laisse vivre (on ne recalcule rien)
+    if (smcState.setup) {
+        const s = smcState.setup;
+        const hitSL = s.type === 'buy' ? currentPrice <= s.sl : currentPrice >= s.sl;
+        const hitTP = s.type === 'buy' ? currentPrice >= s.tp : currentPrice <= s.tp;
+        
+        if (hitSL || hitTP) {
+            smcState.setup = null; // Le trade est terminé
+            smcState.status = 'IDLE';
+            $('tradeStatusClassic').className = 'status-wait';
+            $('tradeStatusClassic').textContent = hitTP ? "🎯 TP Atteint !" : "🛑 SL Touché !";
+            $('analysisContentClassic').innerHTML = '<div class="loading-text">Recherche d\'un nouveau setup...</div>';
+        } else {
+            // Affichage de la progression
+            const R = (currentPrice - s.entry) / (s.sl - s.entry) * (s.type === 'buy' ? 1 : -1);
+            $('tradeStatusClassic').className = 'status-progress';
+            $('tradeStatusClassic').textContent = `🚀 Trade en cours (${R > 0 ? '+' : ''}${R.toFixed(2)} R)`;
+            return; // On sort, le trade est verrouillé
+        }
     }
-    
-    const s = smcSetup;
+
+    // 3. Recherche d'un NOUVEAU setup (si pas de trade actif)
+    const closedCandles = currentData.slice(0, -1);
+    let validOB = null;
+    let dir = 0;
+
+    for (let i = closedCandles.length - 3; i >= closedCandles.length - 20; i--) {
+        const c = closedCandles[i]; const prev = closedCandles[i-1];
+        if (c.time === smcState.tradedOBTime) continue;
+
+        // Détection basique d'un OB Haussier (Rouge -> Grosse Verte)
+        if (c.close > c.open && prev.close < prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0005) {
+            validOB = { top: prev.high, bottom: prev.low, time: c.time };
+            dir = 1; break;
+        }
+        // Détection basique d'un OB Baissier (Verte -> Grosse Rouge)
+        if (c.close < c.open && prev.close > prev.open && Math.abs(c.close - c.open) > currentPrice * 0.0005) {
+            validOB = { top: prev.high, bottom: prev.low, time: c.time };
+            dir = -1; break;
+        }
+    }
+
+    if (validOB) {
+        const entry = (validOB.top + validOB.bottom) / 2;
+        const sl = dir === 1 ? validOB.bottom - (validOB.bottom * 0.0002) : validOB.top + (validOB.top * 0.0002);
+        const tp = dir === 1 ? entry + (entry - sl) * 2 : entry - (sl - entry) * 2;
+        
+        smcState.setup = { type: dir === 1 ? 'buy' : 'sell', entry, sl, tp, startTime: validOB.time };
+        smcState.tradedOBTime = validOB.time;
+        
+        $('tradeStatusClassic').className = 'status-progress';
+        $('tradeStatusClassic').textContent = `🚀 Nouveau Trade ${dir === 1 ? 'ACHAT' : 'VENTE'} !`;
+        
+        renderSMCPanel();
+    } else {
+        $('tradeStatusClassic').className = 'status-wait';
+        $('tradeStatusClassic').textContent = "🔍 Recherche de structure...";
+        $('analysisContentClassic').innerHTML = '<div class="loading-text">Aucun setup validé.</div>';
+    }
+}
+
+function renderSMCPanel() {
+    if (!smcState.setup) return;
+    const s = smcState.setup;
     $('analysisContentClassic').innerHTML = `
         <div class="setup-compact ${s.type}">
             <div class="sc-item"><span class="sc-label">Entrée</span><span class="sc-val entry">${fmt(s.entry)}</span></div>
@@ -288,10 +322,7 @@ function getNYTime(ts) {
 
 function analyzeOPR() {
     if (currentData.length < 50) return;
-    
-    let oprH = -1, oprL = 999999;
-    let startT = null, endT = null;
-    
+    let oprH = -1, oprL = 999999, startT = null, endT = null;
     const todayStr = new Date().toLocaleDateString("en-US", { timeZone: "America/New_York" });
     
     for (const bar of currentData) {
@@ -299,18 +330,14 @@ function analyzeOPR() {
         const barDayStr = new Date(bar.time * 1000).toLocaleDateString("en-US", { timeZone: "America/New_York" });
         if (barDayStr !== todayStr) continue; 
         
-        // Détection de la fenêtre OPR (09h30 - 09h45)
         if (ny.h === 9 && ny.m >= 30 && ny.m < 45) {
             if (startT === null) startT = bar.time;
             endT = bar.time;
-            oprH = Math.max(oprH, bar.high); 
-            oprL = Math.min(oprL, bar.low);
+            oprH = Math.max(oprH, bar.high); oprL = Math.min(oprL, bar.low);
         }
     }
     
-    oprState.levels = { oprH, oprL };
-    oprState.startTime = startT;
-    oprState.endTime = endT;
+    oprState.levels = { oprH, oprL }; oprState.startTime = startT; oprState.endTime = endT;
     
     const nowNY = getNYTime(currentTime);
     const isOPRReady = (nowNY.h > 9 || (nowNY.h === 9 && nowNY.m >= 45)) && oprH !== -1;
@@ -334,7 +361,7 @@ function analyzeOPR() {
 }
 
 /* =========================================
-   DESSIN SUR LE GRAPHIQUE (ÉPURÉ)
+   DESSIN SUR LE GRAPHIQUE
    ========================================= */
 function draw() {
     const rect = $('chart').getBoundingClientRect();
@@ -346,72 +373,48 @@ function draw() {
     const X = t => chart.timeScale().timeToCoordinate(t);
     const Y = p => candleSeries.priceToCoordinate(p);
 
-    if (currentTab === 'classic' && smcSetup) {
-        const s = smcSetup;
+    // DESSIN SMC (Verrouillé)
+    if (currentTab === 'classic' && smcState.setup) {
+        const s = smcState.setup;
         const xStart = X(s.startTime) || (overlayCanvas.width - 100);
         const xEnd = overlayCanvas.width;
-        
         const yE = Y(s.entry), ySL = Y(s.sl), yTP = Y(s.tp);
         
         if (yE !== null && ySL !== null && yTP !== null) {
-            // Zone TP (Vert)
-            ctx.fillStyle = 'rgba(38,166,154,0.15)';
-            ctx.strokeStyle = 'rgba(38,166,154,0.8)';
-            ctx.lineWidth = 2;
+            ctx.fillStyle = 'rgba(38,166,154,0.15)'; ctx.strokeStyle = 'rgba(38,166,154,0.8)'; ctx.lineWidth = 2;
             ctx.fillRect(xStart, Math.min(yE, yTP), xEnd - xStart, Math.abs(yE - yTP));
             ctx.strokeRect(xStart, Math.min(yE, yTP), xEnd - xStart, Math.abs(yE - yTP));
             
-            // Zone SL (Rouge)
-            ctx.fillStyle = 'rgba(239,83,80,0.15)';
-            ctx.strokeStyle = 'rgba(239,83,80,0.8)';
+            ctx.fillStyle = 'rgba(239,83,80,0.15)'; ctx.strokeStyle = 'rgba(239,83,80,0.8)';
             ctx.fillRect(xStart, Math.min(yE, ySL), xEnd - xStart, Math.abs(yE - ySL));
             ctx.strokeRect(xStart, Math.min(yE, ySL), xEnd - xStart, Math.abs(yE - ySL));
             
-            // Ligne Entrée
-            ctx.beginPath();
-            ctx.setLineDash([5,5]);
-            ctx.moveTo(xStart, yE); ctx.lineTo(xEnd, yE);
-            ctx.strokeStyle = '#2962ff';
-            ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.beginPath(); ctx.setLineDash([5,5]); ctx.moveTo(xStart, yE); ctx.lineTo(xEnd, yE);
+            ctx.strokeStyle = '#2962ff'; ctx.stroke(); ctx.setLineDash([]);
         }
     }
     
+    // DESSIN OPR
     if (currentTab === 'opr' && oprState.levels.oprH) {
-        // On ne dessine plus que les lignes de l'OPR
         const drawLine = (price, color, label) => {
-            const y = Y(price);
-            if (y === null) return;
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1;
-            ctx.setLineDash([5, 5]);
+            const y = Y(price); if (y === null) return;
+            ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(overlayCanvas.width, y); ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.fillStyle = color;
-            ctx.font = 'bold 10px sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText(label, 5, y - 5);
+            ctx.setLineDash([]); ctx.fillStyle = color; ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'left'; ctx.fillText(label, 5, y - 5);
         };
-        
         if(oprState.levels.oprH) drawLine(oprState.levels.oprH, '#ff9800', 'OPR H');
         if(oprState.levels.oprL) drawLine(oprState.levels.oprL, '#ff9800', 'OPR L');
         
-        // DESSIN DU RECTANGLE DE CONSTRUCTION OPR
         if (oprState.startTime && oprState.endTime) {
-            const xStart = X(oprState.startTime);
-            const xEnd = X(oprState.endTime);
-            const yH = Y(oprState.levels.oprH);
-            const yL = Y(oprState.levels.oprL);
-            
+            const xStart = X(oprState.startTime), xEnd = X(oprState.endTime);
+            const yH = Y(oprState.levels.oprH), yL = Y(oprState.levels.oprL);
             if (xStart !== null && xEnd !== null && yH !== null && yL !== null) {
-                ctx.fillStyle = 'rgba(255, 152, 0, 0.15)'; // Orange plus doux
+                ctx.fillStyle = 'rgba(255, 152, 0, 0.15)';
                 ctx.fillRect(xStart, yH, xEnd - xStart, yL - yH);
                 ctx.strokeStyle = 'rgba(255, 152, 0, 0.8)';
                 ctx.strokeRect(xStart, yH, xEnd - xStart, yL - yH);
-                
-                // Label au dessus de la zone de construction
-                ctx.fillStyle = '#ff9800';
-                ctx.font = 'bold 10px sans-serif';
+                ctx.fillStyle = '#ff9800'; ctx.font = 'bold 10px sans-serif';
                 ctx.fillText('Zone OPR', xStart + 2, yH - 8);
             }
         }
@@ -426,10 +429,14 @@ window.addEventListener('load', () => {
 });
 
 $('symbolSelect').addEventListener('change', (e) => { 
-    currentSymbol = e.target.value; localStorage.setItem('cv_symbol', currentSymbol); fetchMainData();
+    currentSymbol = e.target.value; localStorage.setItem('cv_symbol', currentSymbol); 
+    smcState.setup = null; smcState.tradedOBTime = 0; // Reset quand on change d'actif
+    fetchMainData();
 });
 $('tfSelect').addEventListener('change', (e) => { 
-    currentTF = e.target.value; localStorage.setItem('cv_tf', currentTF); fetchMainData();
+    currentTF = e.target.value; localStorage.setItem('cv_tf', currentTF); 
+    smcState.setup = null; smcState.tradedOBTime = 0; // Reset quand on change de TF
+    fetchMainData();
 });
 </script>
 </body>
