@@ -123,8 +123,6 @@
       
       <div class="opr-legend">
         <div class="leg-item"><div class="leg-color" style="background:#ff9800"></div> Zone OPR</div>
-        <div class="leg-item"><div class="leg-color" style="background:#2196f3"></div> Asie</div>
-        <div class="leg-item"><div class="leg-color" style="background:#9c27b0"></div> Londres</div>
       </div>
 
       <div class="panel-header"><div>Setup OPR Actif</div></div>
@@ -149,7 +147,7 @@ let smcSetup = null;
 
 // Variables OPR
 let oprState = { 
-    levels: { oprH: null, oprL: null, asiaH: null, asiaL: null, lonH: null, lonL: null },
+    levels: { oprH: null, oprL: null },
     startTime: null, endTime: null,
     valid: false,
     setup: null
@@ -243,7 +241,6 @@ async function fetchMainData() {
 function analyzeSMCClassic() {
     if (currentData.length < 50) return;
     
-    // 1. Mise à jour des badges MTF (Simplifié pour l'exemple)
     const ema = (arr) => arr.reduce((a, b) => a + b.close, 0) / arr.length;
     const isUp = currentPrice > ema(currentData.slice(-50));
     const cls = isUp ? 'up' : 'down';
@@ -257,33 +254,18 @@ function analyzeSMCClassic() {
     $('badge-htf2').className = `mtf-badge ${cls}`;
     $('badge-htf2').innerHTML = `<span>4h : ${isUp ? 'HAUSSE' : 'BAISSE'}</span>`;
 
-    // 2. Détection de setup (Simulation basée sur la tendance pour l'exemple)
-    // Dans un vrai bot, on chercherait ici un BOS/CHoCH + FVG
-    const atr = currentPrice * 0.001; // approx
+    const atr = currentPrice * 0.001;
     
     if (isUp) {
-        smcSetup = {
-            type: 'buy',
-            entry: currentPrice - (atr * 0.5),
-            sl: currentPrice - (atr * 1.5),
-            tp: currentPrice + (atr * 2.0),
-            startTime: currentTime
-        };
+        smcSetup = { type: 'buy', entry: currentPrice - (atr * 0.5), sl: currentPrice - (atr * 1.5), tp: currentPrice + (atr * 2.0), startTime: currentTime };
         $('tradeStatusClassic').className = 'status-progress';
         $('tradeStatusClassic').textContent = "🚀 Trade ACHAT actif";
     } else {
-        smcSetup = {
-            type: 'sell',
-            entry: currentPrice + (atr * 0.5),
-            sl: currentPrice + (atr * 1.5),
-            tp: currentPrice - (atr * 2.0),
-            startTime: currentTime
-        };
+        smcSetup = { type: 'sell', entry: currentPrice + (atr * 0.5), sl: currentPrice + (atr * 1.5), tp: currentPrice - (atr * 2.0), startTime: currentTime };
         $('tradeStatusClassic').className = 'status-progress';
         $('tradeStatusClassic').textContent = "🚀 Trade VENTE actif";
     }
     
-    // Affichage UI
     const s = smcSetup;
     $('analysisContentClassic').innerHTML = `
         <div class="setup-compact ${s.type}">
@@ -308,8 +290,6 @@ function analyzeOPR() {
     if (currentData.length < 50) return;
     
     let oprH = -1, oprL = 999999;
-    let asiaH = -1, asiaL = 999999;
-    let lonH = -1, lonL = 999999;
     let startT = null, endT = null;
     
     const todayStr = new Date().toLocaleDateString("en-US", { timeZone: "America/New_York" });
@@ -318,9 +298,6 @@ function analyzeOPR() {
         const ny = getNYTime(bar.time);
         const barDayStr = new Date(bar.time * 1000).toLocaleDateString("en-US", { timeZone: "America/New_York" });
         if (barDayStr !== todayStr) continue; 
-        
-        if (ny.h >= 0 && ny.h < 6) { asiaH = Math.max(asiaH, bar.high); asiaL = Math.min(asiaL, bar.low); }
-        if (ny.h >= 6 && (ny.h < 9 || (ny.h === 9 && ny.m < 30))) { lonH = Math.max(lonH, bar.high); lonL = Math.min(lonL, bar.low); }
         
         // Détection de la fenêtre OPR (09h30 - 09h45)
         if (ny.h === 9 && ny.m >= 30 && ny.m < 45) {
@@ -331,7 +308,7 @@ function analyzeOPR() {
         }
     }
     
-    oprState.levels = { oprH, oprL, asiaH, asiaL, lonH, lonL };
+    oprState.levels = { oprH, oprL };
     oprState.startTime = startT;
     oprState.endTime = endT;
     
@@ -357,7 +334,7 @@ function analyzeOPR() {
 }
 
 /* =========================================
-   DESSIN SUR LE GRAPHIQUE
+   DESSIN SUR LE GRAPHIQUE (ÉPURÉ)
    ========================================= */
 function draw() {
     const rect = $('chart').getBoundingClientRect();
@@ -401,6 +378,7 @@ function draw() {
     }
     
     if (currentTab === 'opr' && oprState.levels.oprH) {
+        // On ne dessine plus que les lignes de l'OPR
         const drawLine = (price, color, label) => {
             const y = Y(price);
             if (y === null) return;
@@ -415,14 +393,10 @@ function draw() {
             ctx.fillText(label, 5, y - 5);
         };
         
-        if(oprState.levels.asiaH) drawLine(oprState.levels.asiaH, '#2196f3', 'ASIA H');
-        if(oprState.levels.asiaL) drawLine(oprState.levels.asiaL, '#2196f3', 'ASIA L');
-        if(oprState.levels.lonH) drawLine(oprState.levels.lonH, '#9c27b0', 'LON H');
-        if(oprState.levels.lonL) drawLine(oprState.levels.lonL, '#9c27b0', 'LON L');
         if(oprState.levels.oprH) drawLine(oprState.levels.oprH, '#ff9800', 'OPR H');
         if(oprState.levels.oprL) drawLine(oprState.levels.oprL, '#ff9800', 'OPR L');
         
-        // DESSIN DU RECTANGLE OPR (Fenêtre de construction)
+        // DESSIN DU RECTANGLE DE CONSTRUCTION OPR
         if (oprState.startTime && oprState.endTime) {
             const xStart = X(oprState.startTime);
             const xEnd = X(oprState.endTime);
@@ -430,15 +404,15 @@ function draw() {
             const yL = Y(oprState.levels.oprL);
             
             if (xStart !== null && xEnd !== null && yH !== null && yL !== null) {
-                ctx.fillStyle = 'rgba(255, 152, 0, 0.2)'; // Orange visible pour la construction
+                ctx.fillStyle = 'rgba(255, 152, 0, 0.15)'; // Orange plus doux
                 ctx.fillRect(xStart, yH, xEnd - xStart, yL - yH);
                 ctx.strokeStyle = 'rgba(255, 152, 0, 0.8)';
                 ctx.strokeRect(xStart, yH, xEnd - xStart, yL - yH);
                 
                 // Label au dessus de la zone de construction
                 ctx.fillStyle = '#ff9800';
-                ctx.font = 'bold 11px sans-serif';
-                ctx.fillText('Zone OPR', xStart, yH - 10);
+                ctx.font = 'bold 10px sans-serif';
+                ctx.fillText('Zone OPR', xStart + 2, yH - 8);
             }
         }
     }
@@ -448,7 +422,7 @@ window.addEventListener('load', () => {
   initChart();
   fetchMainData();
   setInterval(fetchMainData, 5000);
-  setInterval(draw, 250); // Redessine en continu pour suivre le scroll
+  setInterval(draw, 250);
 });
 
 $('symbolSelect').addEventListener('change', (e) => { 
