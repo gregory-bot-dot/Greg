@@ -76,9 +76,9 @@ select{flex:1;background:var(--panel2);border:1px solid var(--line);color:#fff;b
 
 <script>
 const $ = id => document.getElementById(id);
-const STRATS = {smc:'SMC Classique', opr:'OPR Gold', ema:'📈 EMA Cross', bb:'📊 Bollinger+RSI', asia:'🌏 Asian Breakout'};
+const STRATS = {smc:'SMC Classique', opr:'OPR Gold', ema:'📈 EMA Cross', bb:'📊 Bollinger+RSI', asia:'🌏 Asian Breakout', corys:'⚡ Corys Buy/Sell'};
 let chart, candle, lines = {};
-let data = [], price = 0, now = 0, cur = 'smc', maxLim = 5000;
+let data = [], price = 0, now = 0, cur = 'smc', maxLim = 5000, cy = null;
 let on = new Set(JSON.parse(localStorage.getItem('cv_on')||'["smc"]'));
 let sym = localStorage.getItem('cv_symbol') || 'XAUUSD';
 let tf = localStorage.getItem('cv_tf') || '1m';
@@ -239,6 +239,54 @@ function detectAsia(done){
   return null;
 }
 
+/* ---------- Corys Buy and Sell (port du Pine Script) ---------- */
+function corysCalc(){
+  const n=data.length, S=2.8, ub=[], lb=[], st=[], dr=[], bull=[], bear=[], markers=[];
+  for(let i=0;i<n;i++){ // Supertrend modifié (bandes = close ± sensibilité × 2×(high-low))
+    const c=data[i].close, rg=2*(data[i].high-data[i].low), pc=i?data[i-1].close:NaN;
+    let u=c+S*rg, l=c-S*rg; const pl=i?lb[i-1]:0, pu=i?ub[i-1]:0;
+    l=(l>pl||pc<pl)?l:pl; u=(u<pu||pc>pu)?u:pu; ub.push(u); lb.push(l);
+    dr.push(i===0?1:(st[i-1]===ub[i-1]?(c>u?-1:1):(c<l?1:-1)));
+    st.push(dr[i]===-1?l:u);
+    bull.push(i>0&&c>st[i]&&pc<=st[i-1]); bear.push(i>0&&c<st[i]&&pc>=st[i-1]);
+  }
+  const cl=data.map(x=>x.close), e10=emaArr(cl,10), e20=emaArr(cl,20);
+  for(let i=Math.max(1,n-1500);i<n;i++){
+    const t=data[i].time;
+    if(e20[i-1]!=null && cl[i]>e10[i]&&cl[i-1]<=e10[i-1]&&e10[i]>e20[i]&&e10[i-1]<=e20[i-1]) markers.push({time:t,position:'belowBar',color:'#26a69a',shape:'circle',text:'PB'});
+    if(bull[i]) markers.push({time:t,position:'belowBar',color:'#069981',shape:'arrowUp',text:'BUY'});
+    if(bear[i]) markers.push({time:t,position:'aboveBar',color:'#F23645',shape:'arrowDown',text:'SELL'});
+  }
+  // Range Detector (longueur 20, largeur 1, ATR 500)
+  const aL=Math.min(500,Math.max(14,n>>1)), L=20, atr=Array(n).fill(null), boxes=[];
+  const tr=data.map((d,i)=>i?Math.max(d.high-d.low,Math.abs(d.high-data[i-1].close),Math.abs(d.low-data[i-1].close)):d.high-d.low);
+  if(n>aL){ let a=0; for(let i=0;i<aL;i++) a+=tr[i]; a/=aL; atr[aL-1]=a; for(let i=aL;i<n;i++){ a=(a*(aL-1)+tr[i])/aL; atr[i]=a; } }
+  let b=null, pcnt=0;
+  for(let i=L-1;i<n;i++){
+    if(atr[i]==null){ pcnt=0; continue; }
+    let m=0; for(let j=0;j<L;j++) m+=cl[i-j]; m/=L;
+    const A=atr[i]; let cnt=0; for(let j=0;j<L;j++) if(Math.abs(cl[i-j]-m)>A) cnt++;
+    if(cnt===0 && pcnt!==0){
+      if(b && i-L<=b.r){ b.top=Math.max(m+A,b.top); b.bot=Math.min(m-A,b.bot); b.r=i; b.col='#2157f3'; b.mid=(b.top+b.bot)/2; }
+      else { b={l:Math.max(0,i-L),r:i,top:m+A,bot:m-A,mid:m,col:'#2157f3'}; boxes.push(b); }
+    } else if(cnt===0 && b) b.r=i;
+    if(b){ if(cl[i]>b.top) b.col='#089981'; else if(cl[i]<b.bot) b.col='#f23645'; }
+    pcnt=cnt;
+  }
+  return {st,dir:dr,bull,bear,boxes,markers};
+}
+function detectCorys(done){
+  const n=data.length; hint='Aucun signal';
+  if(!cy||n<60){ hint='Données insuffisantes'; return null; }
+  hint=`SuperTrend ${cy.dir[n-2]===-1?'haussier':'baissier'} · attente de croisement`;
+  for(let i=n-2;i>=n-4;i--){ // 3 dernières bougies fermées
+    const b=cy.bull[i]; if(!b&&!cy.bear[i]||done.includes(data[i].time)) continue;
+    const e=data[i].close, sl=cy.st[i], risk=Math.abs(e-sl); if(!risk||(b?sl>=e:sl<=e)) continue;
+    return mk(b?'buy':'sell',e,sl,b?e+2*risk:e-2*risk,data[i].time,data[i].time,true,b?'Corys BUY':'Corys SELL');
+  }
+  return null;
+}
+
 /* ---------- SMC : badges MTF réels ---------- */
 function badges(){
   const labels=[tf,'15m','4h'], cl=data.map(x=>x.close), e=emaArr(cl,50);
@@ -289,6 +337,12 @@ function setInd(){
   else { lines.e50.setData([]); lines.e200.setData([]); }
   if(on.has('bb')){ const b=boll(cl); lines.bu.setData(ser(b.u)); lines.bl.setData(ser(b.l)); lines.bm.setData(ser(b.m)); }
   else { lines.bu.setData([]); lines.bl.setData([]); lines.bm.setData([]); }
+  if(on.has('corys') && cy){ // ruban EMA Energy (15 EMA du high, vert si close >= EMA) + signaux
+    const hi=data.map(x=>x.high), a=Math.max(0,data.length-1500);
+    lines.rib.forEach((ls,k)=>{ const e=emaArr(hi,9+3*k);
+      ls.setData(data.slice(a).map((b,j)=>{ const v=e[a+j]; return v==null?null:{time:b.time,value:v,color:b.close>=v?'#069981':'#F23645'}; }).filter(Boolean)); });
+    candle.setMarkers(cy.markers);
+  } else { lines.rib.forEach(l=>l.setData([])); candle.setMarkers([]); }
 }
 
 /* ---------- onglets (plusieurs actifs, superposés) ---------- */
@@ -315,8 +369,9 @@ function toggle(k){
 function refresh(){
   if(data.length<2) return;
   if(on.has('asia')) asiaR = calcAsia();
+  if(on.has('corys')) cy = corysCalc();
   const f={ smc:()=>{ badges(); manage('smc',detectSMC); }, opr:analyzeOPR,
-    ema:()=>manage('ema',detectEMA), bb:()=>manage('bb',detectBB), asia:()=>manage('asia',detectAsia) };
+    ema:()=>manage('ema',detectEMA), bb:()=>manage('bb',detectBB), asia:()=>manage('asia',detectAsia), corys:()=>manage('corys',detectCorys) };
   for(const k of on) f[k]();
   setInd(); sd();
 }
@@ -338,7 +393,7 @@ async function getBars(s,i,limit){
     out.push({time:t,open:+d.open,high:+d.high,low:+d.low,close:+d.close}); }
   return out.sort((a,b)=>a.time-b.time);
 }
-function resetData(){ data=[]; candle.setData([]); }
+function resetData(){ cy=null; data=[]; candle.setData([]); }
 async function fetchMainData(){
   const my=++seqStarted, s=sym, t=tf;
   const bars = await getBars(s,t,5000);
@@ -359,7 +414,7 @@ function draw(){
   if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; }
   ctx.setTransform(d,0,0,d,0,0); ctx.clearRect(0,0,r.width,r.height);
   const CW=r.width, X=t=>chart.timeScale().timeToCoordinate(t), Y=p=>candle.priceToCoordinate(p);
-  for(const st of ['smc','ema','bb','asia']){ if(on.has(st) && states[st] && states[st].setup){
+  for(const st of ['smc','ema','bb','asia','corys']){ if(on.has(st) && states[st] && states[st].setup){
     const s=states[st].setup, pend=states[st].live==='pending';
     const x0=Math.max(0, X(s.t0) ?? CW-100), yE=Y(s.entry), yS=Y(s.sl), yT=Y(s.tp);
     if(yE!==null&&yS!==null&&yT!==null){
@@ -378,6 +433,16 @@ function draw(){
       ctx.fillStyle='rgba(41,98,255,.15)'; ctx.strokeStyle='rgba(41,98,255,.9)'; ctx.lineWidth=1;
       ctx.fillRect(x0,yH,CW-x0,yL-yH); ctx.strokeRect(x0,yH,CW-x0,yL-yH);
       ctx.fillStyle='#5b8cff'; ctx.font='bold 10px sans-serif'; ctx.textAlign='left'; ctx.fillText('Range Asie',x0+4,yH-5);
+    }
+  }
+  if(on.has('corys') && cy){ // Range Detector
+    for(const b of cy.boxes.slice(-30)){
+      if(!data[b.l]||!data[b.r]) continue;
+      const x0=X(data[b.l].time), x1=X(data[b.r].time), yT=Y(b.top), yB=Y(b.bot), yM=Y(b.mid);
+      if(x0===null||x1===null||yT===null||yB===null) continue;
+      ctx.globalAlpha=.2; ctx.fillStyle=b.col; ctx.fillRect(x0,yT,x1-x0,yB-yT); ctx.globalAlpha=1;
+      ctx.strokeStyle=b.col; ctx.lineWidth=1; ctx.strokeRect(x0,yT,x1-x0,yB-yT);
+      if(yM!==null){ ctx.setLineDash([2,3]); ctx.beginPath(); ctx.moveTo(x0,yM); ctx.lineTo(x1,yM); ctx.stroke(); ctx.setLineDash([]); }
     }
   }
   if(on.has('opr') && oprState.levels.oprH>0){
@@ -409,6 +474,7 @@ function initChart(){
   const L=(c,w)=>chart.addLineSeries({color:c,lineWidth:w,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
   lines.e50=L('#2962ff',2); lines.e200=L('#ff9800',2);
   lines.bu=L('rgba(98,142,255,.8)',1); lines.bl=L('rgba(98,142,255,.8)',1); lines.bm=L('rgba(139,148,168,.7)',1);
+  lines.rib=Array.from({length:15},()=>L('#069981',1));
   new ResizeObserver(()=>{ const r=el.getBoundingClientRect(); chart.applyOptions({width:r.width,height:r.height}); sd(); }).observe(el);
   chart.timeScale().subscribeVisibleLogicalRangeChange(sd);
   chart.subscribeCrosshairMove(sd);
