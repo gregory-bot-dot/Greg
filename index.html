@@ -281,14 +281,13 @@ function detectCorys(done){
   return null;
 }
 
-/* ---------- NOUVEAU : Détection des prochains trades potentiels (Zones) ---------- */
+/* ---------- Détection des prochains trades potentiels (Zones) ---------- */
 function detectNextZones() {
     const c = data.slice(0, -1);
     if (c.length < 20) return;
     let buyZ = null, sellZ = null;
     const atr = atrAt(c, c.length - 1) || (price * 0.001);
 
-    // On cherche sur les 40 dernières bougies
     for (let i = c.length - 5; i >= Math.max(1, c.length - 40); i--) {
         const k = c[i], p = c[i-1];
         const big = Math.abs(k.close - k.open) > atr * 0.5;
@@ -409,7 +408,7 @@ function refresh(){
     ema:()=>manage('ema',detectEMA), bb:()=>manage('bb',detectBB), asia:()=>manage('asia',detectAsia), corys:()=>manage('corys',detectCorys) };
   for(const k of on) f[k]();
 
-  // Affichage des prochaines zones
+  // Affichage des prochaines zones dans l'interface
   ['smc', 'ema', 'bb', 'asia', 'corys'].forEach(k => {
       if (on.has(k)) {
           $('next-' + k).style.display = 'flex';
@@ -421,7 +420,7 @@ function refresh(){
   setInd(); sd();
 }
 
-/* ---------- Données (Pagination pour plus de bougies) ---------- */
+/* ---------- Données (Pagination) ---------- */
 async function fetchUrl(u){
   try{ const r=await fetch(u); if(r.ok) return await r.json(); }catch(e){}
   try{ const r=await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`); if(r.ok) return await r.json(); }catch(e){}
@@ -429,7 +428,7 @@ async function fetchUrl(u){
 }
 async function getBars(s,i,limit){
   let allBars = [], endT = Date.now();
-  const batch = 1000; // Limite de l'API
+  const batch = 1000;
   let fetched = 0;
 
   while (fetched < limit) {
@@ -445,12 +444,10 @@ async function getBars(s,i,limit){
 
       allBars = [...bars, ...allBars];
       fetched += bars.length;
-      endT = bars[0].time * 1000 - 1; // Timestamp de la toute première bougie récupérée
+      endT = bars[0].time * 1000 - 1;
 
-      if (bars.length < n) break; // Plus de données disponibles
+      if (bars.length < n) break;
   }
-
-  // Nettoyage des doublons
   const seen = new Set();
   return allBars.filter(b => {
       if (seen.has(b.time)) return false;
@@ -462,7 +459,7 @@ async function getBars(s,i,limit){
 function resetData(){ cy=null; data=[]; candle.setData([]); }
 async function fetchMainData(){
   const my=++seqStarted, s=sym, t=tf;
-  const bars = await getBars(s,t,2000); // On demande 2000 bougies (pagination gérée)
+  const bars = await getBars(s,t,2000);
   if(!bars||!bars.length||s!==sym||t!==tf||my<seqApplied) return;
   seqApplied=my;
   const prevLast = data.length ? data[data.length-1].time : null;
@@ -481,27 +478,25 @@ function draw(){
   ctx.setTransform(d,0,0,d,0,0); ctx.clearRect(0,0,r.width,r.height);
   const CW=r.width, X=t=>chart.timeScale().timeToCoordinate(t), Y=p=>candle.priceToCoordinate(p);
 
-  // 1. DESSIN DES PROCHAINES ZONES (Optionnel, affiché si pas de trade actif sur l'onglet courant)
-  if (currentTabIsIdle()) {
-      const drawZone = (z, color, label) => {
-          const yT = Y(z.top), yB = Y(z.bottom);
-          if (yT !== null && yB !== null) {
-              ctx.fillStyle = color.replace('1)', '0.05)'); // Très transparent
-              ctx.strokeStyle = color;
-              ctx.lineWidth = 1;
-              ctx.setLineDash([4, 4]);
-              ctx.fillRect(0, yT, CW, yB - yT);
-              ctx.strokeRect(0, yT, CW, yB - yT);
-              ctx.setLineDash([]);
-              ctx.fillStyle = color;
-              ctx.font = 'bold 10px sans-serif';
-              ctx.textAlign = 'left';
-              ctx.fillText(label, 5, yT - 5);
-          }
-      };
-      if (nextZones.buy) drawZone(nextZones.buy, 'rgba(38,166,154,1)', 'Next Buy');
-      if (nextZones.sell) drawZone(nextZones.sell, 'rgba(239,83,80,1)', 'Next Sell');
-  }
+  // 1. DESSIN DES PROCHAINES ZONES (Toujours visible, style pointillé fin)
+  const drawZone = (z, color, label) => {
+      const yT = Y(z.top), yB = Y(z.bottom);
+      if (yT !== null && yB !== null) {
+          ctx.fillStyle = color.replace('1)', '0.05)'); // Très transparent
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 3]);
+          ctx.fillRect(0, yT, CW, yB - yT);
+          ctx.strokeRect(0, yT, CW, yB - yT);
+          ctx.setLineDash([]);
+          ctx.fillStyle = color;
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(label, 5, yT - 5);
+      }
+  };
+  if (nextZones.buy) drawZone(nextZones.buy, 'rgba(38,166,154,1)', 'Prochaine zone ACHAT');
+  if (nextZones.sell) drawZone(nextZones.sell, 'rgba(239,83,80,1)', 'Prochaine zone VENTE');
 
   // 2. DESSIN DES TRADES ACTIFS
   for(const st of ['smc','ema','bb','asia','corys']){ if(on.has(st) && states[st] && states[st].setup){
@@ -552,12 +547,6 @@ function draw(){
       }
     }
   }
-}
-
-function currentTabIsIdle() {
-    if (!on.has(cur)) return false;
-    const st = states[cur];
-    return !st || !st.setup;
 }
 
 /* ---------- Init ---------- */
