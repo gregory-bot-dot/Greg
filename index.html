@@ -3,26 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ChartVision — restauration</title>
-  <style>html,body{height:100%;margin:0;background:#0b0e14;color:#e8eef7;font-family:sans-serif}main{display:grid;place-items:center;height:100%;text-align:center}a{color:#2962ff}</style>
+  <meta http-equiv="refresh" content="0;url=https://cdn.jsdelivr.net/gh/gregory-bot-dot/Greg@30d006563b218281cb80def09045e84aa297b60e/index.html">
+  <title>ChartVision</title>
+  <style>html,body{height:100%;margin:0;background:#0b0e14;color:#e8eef7;font-family:sans-serif}main{display:grid;place-items:center;height:100%;text-align:center}a{color:#6ca0ff}</style>
 </head>
 <body>
-<main id="restore"><div>Restauration de ChartVision…</div></main>
+<main>
+  <div>
+    <p>Chargement de ChartVision…</p>
+    <p><a href="https://cdn.jsdelivr.net/gh/gregory-bot-dot/Greg@30d006563b218281cb80def09045e84aa297b60e/index.html">Continuer vers l'application</a></p>
+  </div>
+</main>
 <script>
-(async () => {
-  try {
-    const source = 'https://raw.githubusercontent.com/gregory-bot-dot/Greg/30d006563b218281cb80def09045e84aa297b60e/index.html';
-    const response = await fetch(source, { cache: 'no-store' });
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    const html = await response.text();
-    document.open();
-    document.write(html);
-    document.close();
-  } catch (error) {
-    document.getElementById('restore').innerHTML =
-      '<div>Impossible de restaurer automatiquement.<br><a href="https://github.com/gregory-bot-dot/Greg/commit/30d006563b218281cb80def09045e84aa297b60e">Ouvrir la version originale</a></div>';
-  }
-})();
+location.replace('https://cdn.jsdelivr.net/gh/gregory-bot-dot/Greg@30d006563b218281cb80def09045e84aa297b60e/index.html');
 </script>
 </body>
 </html>
